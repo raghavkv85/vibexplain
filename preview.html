@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>vibexplain — architecture preview</title>
+  <style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+:root { --bg:#0d1117; --surface:#161b22; --border:#30363d; --text:#e6edf3; --dim:#8b949e; --accent:#58a6ff; --green:#3fb950; --yellow:#d29922; --purple:#bc8cff; --pink:#f778ba; --red:#f85149; }
+body { font-family:'SF Mono','Fira Code','Cascadia Code',monospace; background:var(--bg); color:var(--text); min-height:100vh; }
+header { display:flex; align-items:center; gap:16px; padding:12px 24px; border-bottom:1px solid var(--border); }
+header h1 { font-size:18px; font-weight:600; color:var(--purple); }
+.header-controls { display:flex; gap:4px; margin-left:auto; }
+.status { font-size:12px; color:var(--green); margin-left:12px; }
+.status::before { content:'● '; }
+.tab { background:transparent; border:1px solid var(--border); color:var(--dim); padding:4px 12px; border-radius:6px; font-family:inherit; font-size:12px; cursor:pointer; }
+.tab.active { background:var(--surface); color:var(--text); border-color:var(--accent); }
+main { display:grid; grid-template-columns:1fr 4px 340px; gap:0; background:var(--border); height:calc(100vh - 49px); }
+section { background:var(--bg); overflow:hidden; position:relative; }
+.divider { background:var(--border); cursor:col-resize; position:relative; z-index:5; }
+.divider:hover, .divider.active { background:var(--accent); }
+.divider::after { content:''; position:absolute; top:50%; left:-4px; right:-4px; height:40px; transform:translateY(-50%); }
+#right { padding:20px 24px; overflow-y:auto; }
+#right h2 { font-size:13px; text-transform:uppercase; letter-spacing:1.5px; color:var(--dim); margin-bottom:16px; }
+.panel-view { display:none; width:100%; height:100%; overflow:auto; }
+.panel-view.active { display:block; }
+#arch-view svg, #flow-view svg { width:100%; height:100%; background:var(--bg); }
+#flow-view { position:relative; }
+.narr-entry { padding:10px 14px; margin-bottom:8px; border-left:2px solid var(--purple); animation:slideIn .3s ease; }
+.narr-entry .cmd { color:var(--accent); font-size:12px; font-weight:600; }
+.narr-entry .text { font-size:13px; color:var(--text); line-height:1.4; margin-top:3px; }
+.narr-entry .svc-badge { display:inline-block; font-size:10px; padding:1px 8px; border-radius:10px; margin-top:4px; font-weight:600; }
+@keyframes slideIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+@keyframes archFade { from{opacity:0} to{opacity:1} }
+@keyframes archDraw { from{stroke-dashoffset:300} to{stroke-dashoffset:0} }
+@keyframes archBlink {
+  0%,100% { stroke-opacity:1; }
+  50% { stroke-opacity:0.2; }
+}
+@keyframes glowBlink {
+  0%,100% { opacity:0.7; }
+  50% { opacity:0; }
+}
+/* Detail panel overlay */
+.detail-overlay {
+  position:absolute; top:0; right:0; bottom:0; width:340px;
+  background:var(--bg); border-left:1px solid var(--border);
+  padding:20px 24px; overflow-y:auto; z-index:20;
+  animation:slideIn .2s ease;
+}
+.detail-overlay .detail-close { position:absolute; top:12px; right:16px; background:none; border:none; color:var(--dim); font-size:18px; cursor:pointer; font-family:inherit; }
+.detail-overlay .detail-close:hover { color:var(--text); }
+.detail-overlay .detail-icon { font-size:28px; margin-bottom:8px; }
+.detail-overlay .detail-title { font-size:16px; font-weight:600; margin-bottom:4px; }
+.detail-overlay .detail-sub { font-size:12px; color:var(--dim); margin-bottom:16px; }
+.detail-overlay .detail-section { font-size:11px; text-transform:uppercase; letter-spacing:1px; color:var(--dim); margin:12px 0 6px; }
+.detail-overlay .detail-cmd { font-size:12px; color:var(--accent); background:var(--surface); padding:6px 10px; border-radius:6px; margin-bottom:4px; }
+.detail-overlay .detail-conn { font-size:12px; color:var(--text); padding:4px 0; }
+.detail-overlay .detail-conn span { color:var(--dim); }
+/* Flow blocks */
+.blocks-tower { display:flex; flex-direction:column; gap:2px; }
+.block-layer { border:1px solid var(--border); border-radius:6px; padding:10px 14px; background:var(--surface); opacity:0.35; transition:opacity .4s,border-color .4s,box-shadow .4s; }
+.block-layer.lit { opacity:1; border-color:var(--accent); box-shadow:inset 3px 0 0 var(--accent); }
+.block-header { display:flex; align-items:center; gap:10px; }
+.block-label { font-size:14px; font-weight:600; }
+.block-desc { font-size:11px; color:var(--dim); flex:1; }
+.block-count { font-size:11px; background:var(--accent); color:var(--bg); padding:1px 7px; border-radius:10px; font-weight:600; }
+.block-items { margin-top:8px; padding-top:8px; border-top:1px solid var(--border); }
+.block-item { font-size:12px; margin-bottom:4px; display:flex; align-items:baseline; gap:8px; }
+.block-item code { color:var(--accent); background:var(--bg); padding:1px 6px; border-radius:3px; font-size:11px; }
+.block-artifacts { font-size:10px; color:var(--green); }
+.blocks-status { text-align:center; font-size:11px; color:var(--dim); margin-top:12px; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>⚡ vibexplain</h1>
+    <div class="header-controls">
+      <button class="tab active" data-panel="arch">Architecture</button>
+      <button class="tab" data-panel="flow">Flow</button>
+    </div>
+    <span class="status">simulating</span>
+  </header>
+  <main>
+    <section id="left">
+      <div id="arch-view" class="panel-view active">
+        <svg id="arch-svg" viewBox="0 0 1000 700"></svg>
+      </div>
+      <div id="flow-view" class="panel-view">
+        <svg id="flow-svg" width="100%" height="100%"></svg>
+      </div>
+    </section>
+    <div class="divider" id="divider"></div>
+    <section id="right">
+      <h2>What's being built</h2>
+      <div id="narrative"></div>
+    </section>
+  </main>
+<script>
+// Resizable divider
+(function(){
+  const divider=document.getElementById('divider'), main=document.querySelector('main');
+  let dragging=false;
+  divider.addEventListener('mousedown',()=>{dragging=true;divider.classList.add('active');document.body.style.cursor='col-resize';document.body.style.userSelect='none';});
+  window.addEventListener('mousemove',e=>{if(!dragging)return;const rect=main.getBoundingClientRect();const rightW=Math.max(200,Math.min(rect.width-300,rect.right-e.clientX));main.style.gridTemplateColumns=`1fr 4px ${rightW}px`;});
+  window.addEventListener('mouseup',()=>{dragging=false;divider.classList.remove('active');document.body.style.cursor='';document.body.style.userSelect='';});
+})();
+
+// Tab switching
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    document.querySelectorAll('.panel-view').forEach(v => v.classList.remove('active'));
+    document.getElementById(tab.dataset.panel + '-view').classList.add('active');
+  });
+});
+
+const NS = 'http://www.w3.org/2000/svg';
+function el(tag,attrs={}){const e=document.createElementNS(NS,tag);for(const[k,v]of Object.entries(attrs))e.setAttribute(k,v);return e;}
+function esc(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML;}
+
+// ============ ARCHITECTURE VIEW ============
+const archSvg = document.getElementById('arch-svg');
+const serviceCatalog = {
+  lambda:     {icon:'λ',  label:'Lambda',       tier:'compute',  color:'#f90',    detect:[/aws\s+lambda/]},
+  apigateway: {icon:'⇄',  label:'API Gateway',  tier:'network',  color:'#f90',    detect:[/aws\s+apigateway/]},
+  dynamodb:   {icon:'◎',  label:'DynamoDB',     tier:'storage',  color:'#4053d6', detect:[/aws\s+dynamodb/]},
+  s3:         {icon:'◇',  label:'S3 Bucket',    tier:'storage',  color:'#3f8624', detect:[/aws\s+s3/]},
+  sqs:        {icon:'↦',  label:'SQS Queue',    tier:'messaging',color:'#f90',    detect:[/aws\s+sqs/]},
+  sns:        {icon:'⚑',  label:'SNS Topic',    tier:'messaging',color:'#f90',    detect:[/aws\s+sns/]},
+  cognito:    {icon:'👤', label:'Cognito',       tier:'network',  color:'#dd344c', detect:[/aws\s+cognito/]},
+  cloudfront: {icon:'◐',  label:'CloudFront',   tier:'network',  color:'#8c4fff', detect:[/aws\s+cloudfront/]},
+  docker:     {icon:'🐳', label:'Docker',        tier:'compute',  color:'#2496ed', detect:[/^docker\s/]},
+  express:    {icon:'⚡', label:'Express',       tier:'compute',  color:'#3fb950', detect:[/npm\s+(install|i)\s+.*express/]},
+  mongoose:   {icon:'🍃', label:'MongoDB',       tier:'storage',  color:'#47a248', detect:[/npm\s+(install|i)\s+.*mongoose/]},
+  terraform:  {icon:'⬡',  label:'Terraform',     tier:'infra',    color:'#7b42bc', detect:[/^terraform\s/]},
+};
+const knownConns = [
+  ['cloudfront','s3'],['cloudfront','apigateway'],['cognito','apigateway'],
+  ['apigateway','lambda'],['apigateway','express'],
+  ['lambda','dynamodb'],['lambda','s3'],['lambda','sqs'],
+  ['sns','sqs'],['sns','lambda'],
+  ['express','mongoose'],['docker','express'],
+];
+const tierOrder = ['network','compute','messaging','storage','infra'];
+const tierLabels = {network:'Networking & Auth',compute:'Compute',messaging:'Messaging',storage:'Storage',infra:'Infrastructure'};
+
+// Fixed layout positions — reads like a real architecture diagram (top-to-bottom request flow)
+// Row 0: Entry points (user-facing)
+// Row 1: Auth
+// Row 2: Compute
+// Row 3: Messaging (side channel)
+// Row 4: Storage
+// Row 5: Infra/IaC
+const layoutPositions = {
+  cloudfront:   { col:1, row:0 },
+  cognito:      { col:2, row:0 },
+  apigateway:   { col:1, row:1 },
+  express:      { col:0, row:2 },
+  lambda:       { col:1, row:2 },
+  docker:       { col:2, row:2 },
+  sns:          { col:3, row:2 },
+  sqs:          { col:3, row:3 },
+  dynamodb:     { col:0, row:3 },
+  s3:           { col:1, row:3 },
+  mongoose:     { col:2, row:3 },
+  terraform:    { col:1, row:4 },
+};
+
+// Directed edges: [from, to] — follows request/data flow direction
+const flowEdges = [
+  ['cloudfront','apigateway'],
+  ['cloudfront','s3'],
+  ['cognito','apigateway'],
+  ['apigateway','lambda'],
+  ['apigateway','express'],
+  ['lambda','dynamodb'],
+  ['lambda','s3'],
+  ['lambda','sqs'],
+  ['express','mongoose'],
+  ['express','dynamodb'],
+  ['docker','express'],
+  ['sns','sqs'],
+  ['sns','lambda'],
+];
+
+const active = {};
+const activeEdgeSet = new Set();
+let latestServiceId = null;
+const serviceCommands = {};
+
+function archAdd(cmd) {
+  let changed = false;
+  for (const id of Object.keys(active)) active[id].isLatest = false;
+
+  for (const [id,svc] of Object.entries(serviceCatalog)) {
+    const matches = svc.detect.some(re => re.test(cmd));
+    if (active[id]) {
+      if (matches) {
+        active[id].isLatest = true; latestServiceId = id; changed = true;
+        if (!serviceCommands[id]) serviceCommands[id] = [];
+        serviceCommands[id].push(cmd);
+      }
+      continue;
+    }
+    if (matches) {
+      active[id] = {...svc, id, isLatest: true};
+      latestServiceId = id;
+      if (!serviceCommands[id]) serviceCommands[id] = [];
+      serviceCommands[id].push(cmd);
+      changed = true;
+    }
+  }
+  if (changed) archRender();
+}
+
+function archRender() {
+  archSvg.innerHTML = '';
+  const ids = Object.keys(active);
+  if (!ids.length) return;
+
+  // Marker defs
+  const defs = el('defs');
+  const seenColors = new Set();
+  for (const svc of Object.values(serviceCatalog)) {
+    if (seenColors.has(svc.color)) continue; seenColors.add(svc.color);
+    const m = el('marker',{id:'ah-'+svc.color.slice(1),markerWidth:10,markerHeight:7,refX:9,refY:3.5,orient:'auto',markerUnits:'strokeWidth'});
+    m.appendChild(el('polygon',{points:'0 0, 10 3.5, 0 7',fill:svc.color}));
+    defs.appendChild(m);
+  }
+  archSvg.appendChild(defs);
+
+  const W=900, nW=140, nH=60, gX=40, gY=30;
+  const positions = {};
+
+  // Row labels
+  const rowLabels = ['👤 Entry','🔐 Auth','⚙️ Compute','💾 Data & Messaging','🏗️ Infra'];
+
+  // Place active services using fixed layout
+  for (const id of ids) {
+    const layout = layoutPositions[id];
+    if (!layout) continue;
+    const x = 80 + layout.col * (nW + gX);
+    const y = 40 + layout.row * (nH + gY);
+    positions[id] = { x, y, w: nW, h: nH };
+  }
+
+  // Draw row labels for rows that have services
+  const activeRows = new Set();
+  for (const id of ids) { const lp = layoutPositions[id]; if (lp) activeRows.add(lp.row); }
+  for (const row of activeRows) {
+    const y = 40 + row * (nH + gY) + nH/2;
+    const label = el('text',{x:16,y:y,'text-anchor':'start','dominant-baseline':'middle',fill:'#30363d','font-size':10,'font-family':'inherit'});
+    label.textContent = rowLabels[row] || '';
+    archSvg.appendChild(label);
+  }
+
+  // Draw edges first (behind nodes) — only between active services
+  for (const [a,b] of flowEdges) {
+    const fP=positions[a], tP=positions[b];
+    if (!fP || !tP) continue;
+
+    // Smart anchor selection
+    const fCx=fP.x+fP.w/2, fCy=fP.y+fP.h/2;
+    const tCx=tP.x+tP.w/2, tCy=tP.y+tP.h/2;
+    const dx=tCx-fCx, dy=tCy-fCy;
+
+    let x1,y1,x2,y2;
+    if (Math.abs(dy) > Math.abs(dx)*0.5) {
+      // Mostly vertical — use bottom→top
+      x1=fP.x+fP.w/2; y1=dy>0?fP.y+fP.h:fP.y;
+      x2=tP.x+tP.w/2; y2=dy>0?tP.y:tP.y+tP.h;
+    } else {
+      // Mostly horizontal — use right→left
+      x1=dx>0?fP.x+fP.w:fP.x; y1=fP.y+fP.h/2;
+      x2=dx>0?tP.x:tP.x+tP.w; y2=tP.y+tP.h/2;
+    }
+
+    const midX=(x1+x2)/2, midY=(y1+y2)/2;
+    let d;
+    if (Math.abs(y1-y2) > Math.abs(x1-x2)*0.5) {
+      d = `M${x1},${y1} C${x1},${midY} ${x2},${midY} ${x2},${y2}`;
+    } else {
+      d = `M${x1},${y1} C${midX},${y1} ${midX},${y2} ${x2},${y2}`;
+    }
+
+    const col = active[a]?.color || '#484f58';
+    archSvg.appendChild(el('path',{d,fill:'none',stroke:col,'stroke-width':1.5,'stroke-opacity':0.5,
+      'marker-end':`url(#ah-${col.slice(1)})`,
+      'stroke-dasharray':'300','stroke-dashoffset':'300',style:'animation:archDraw 0.8s ease forwards'}));
+  }
+
+  // Draw service nodes
+  for (const id of ids) {
+    const p = positions[id];
+    if (!p) continue;
+    const svc = active[id];
+    const isLatest = svc.isLatest;
+    const g = el('g',{style:'animation:archFade 0.5s ease; cursor:pointer'});
+
+    if (isLatest) {
+      g.appendChild(el('rect',{x:p.x-4,y:p.y-4,width:nW+8,height:nH+8,rx:12,
+        fill:'none',stroke:svc.color,'stroke-width':2.5,
+        style:'animation:archBlink 0.8s ease-in-out infinite'}));
+      g.appendChild(el('rect',{x:p.x-6,y:p.y-6,width:nW+12,height:nH+12,rx:14,
+        fill:'none',stroke:svc.color,'stroke-width':1,
+        style:'animation:glowBlink 0.8s ease-in-out infinite'}));
+    }
+
+    g.appendChild(el('rect',{x:p.x,y:p.y,width:nW,height:nH,rx:10,fill:'var(--surface)',stroke:svc.color,'stroke-width':isLatest?2.5:2}));
+
+    const ic=el('text',{x:p.x+nW/2,y:p.y+24,'text-anchor':'middle',fill:svc.color,'font-size':18,'font-family':'inherit'});
+    ic.textContent=svc.icon; g.appendChild(ic);
+    const lb=el('text',{x:p.x+nW/2,y:p.y+44,'text-anchor':'middle',fill:svc.color,'font-size':10,'font-weight':600,'font-family':'inherit'});
+    lb.textContent=svc.label; g.appendChild(lb);
+
+    if (isLatest) {
+      const badge=el('text',{x:p.x+nW-6,y:p.y+12,'text-anchor':'middle',fill:svc.color,'font-size':11});
+      badge.textContent='●'; g.appendChild(badge);
+    }
+
+    g.addEventListener('click', () => showDetail(id));
+    archSvg.appendChild(g);
+  }
+
+  const maxRow = Math.max(...ids.map(id => layoutPositions[id]?.row ?? 0));
+  const maxCol = Math.max(...ids.map(id => layoutPositions[id]?.col ?? 0));
+  const svgW = Math.max(W, 80 + (maxCol+1)*(nW+gX) + 40);
+  const svgH = Math.max(400, 40 + (maxRow+1)*(nH+gY) + 40);
+  archSvg.setAttribute('viewBox',`0 0 ${svgW} ${svgH}`);
+}
+
+// ============ DETAIL PANEL (click on a service) ============
+function showDetail(id) {
+  // Remove existing detail
+  const existing = document.querySelector('.detail-overlay');
+  if (existing) existing.remove();
+
+  const svc = active[id];
+  if (!svc) return;
+
+  const cmds = serviceCommands[id] || [];
+  // Find connections
+  const connections = flowEdges.filter(([a,b]) => (a===id||b===id) && active[a] && active[b]).map(([a,b]) => {
+    const other = a===id ? b : a;
+    const dir = a===id ? '→' : '←';
+    return { dir, other, label: active[other]?.label || other };
+  });
+
+  const panel = document.createElement('div');
+  panel.className = 'detail-overlay';
+  let html = `<button class="detail-close">✕</button>`;
+  html += `<div class="detail-icon" style="color:${svc.color}">${svc.icon}</div>`;
+  html += `<div class="detail-title" style="color:${svc.color}">${svc.label}</div>`;
+  html += `<div class="detail-sub">${svc.tier.toUpperCase()} · ${cmds.length} command${cmds.length!==1?'s':''}</div>`;
+
+  if (cmds.length) {
+    html += `<div class="detail-section">Commands executed</div>`;
+    for (const c of cmds) html += `<div class="detail-cmd">${esc(c)}</div>`;
+  }
+
+  if (connections.length) {
+    html += `<div class="detail-section">Connections</div>`;
+    for (const c of connections) {
+      html += `<div class="detail-conn">${c.dir} <span>${c.label}</span></div>`;
+    }
+  }
+
+  panel.innerHTML = html;
+  document.getElementById('left').appendChild(panel);
+  panel.querySelector('.detail-close').addEventListener('click', () => panel.remove());
+}
+
+// ============ FLOW VIEW (mind-map style) ============
+const flowSvg = document.getElementById('flow-svg');
+const flowCats = {
+  'Files & Dirs':    { match:['mkdir','touch','cp','mv'], color:'#58a6ff', icon:'📁' },
+  'Dependencies':    { match:['npm install','npm i','yarn add','pip install'], color:'#3fb950', icon:'📦' },
+  'Version Control': { match:['git'], color:'#d29922', icon:'🔀' },
+  'Containers':      { match:['docker','kubectl'], color:'#f778ba', icon:'🐳' },
+  'Cloud / Infra':   { match:['aws','terraform','ssh'], color:'#bc8cff', icon:'☁️' },
+  'Runtime':         { match:['node','python','make','npm run','npm start','curl'], color:'#f85149', icon:'🚀' },
+};
+const flowBranches = {};
+let flowLatest = null;
+let flowPanG, flowZoom=1, flowVX=0, flowVY=0, flowPanning=false, flowPSX=0, flowPSY=0;
+
+function initFlowPan(){
+  const c=document.getElementById('flow-view');
+  c.addEventListener('wheel',e=>{e.preventDefault();flowZoom=Math.max(.2,Math.min(3,flowZoom*(e.deltaY>0?.9:1.1)));flowApply();},{passive:false});
+  c.addEventListener('mousedown',e=>{flowPanning=true;flowPSX=e.clientX;flowPSY=e.clientY;c.style.cursor='grabbing';});
+  window.addEventListener('mousemove',e=>{if(!flowPanning)return;flowVX+=(e.clientX-flowPSX)/flowZoom;flowVY+=(e.clientY-flowPSY)/flowZoom;flowPSX=e.clientX;flowPSY=e.clientY;flowApply();});
+  window.addEventListener('mouseup',()=>{flowPanning=false;document.getElementById('flow-view').style.cursor='grab';});
+  c.style.cursor='grab';
+}
+function flowApply(){if(flowPanG)flowPanG.setAttribute('transform',`translate(${flowVX},${flowVY}) scale(${flowZoom})`);}
+
+function flowCategorize(cmd){for(const[cat,def]of Object.entries(flowCats))if(def.match.some(m=>cmd.startsWith(m)))return cat;return null;}
+function flowTrunc(s,n){return s&&s.length>n?s.slice(0,n-1)+'…':(s||'');}
+
+function flowAdd(cmd, artifacts) {
+  const cat=flowCategorize(cmd);
+  if(!cat)return;
+  if(!flowBranches[cat])flowBranches[cat]=[];
+  flowBranches[cat].push({id:++flowSeqN,cmd:flowTrunc(cmd,30),desc:'',artifacts:(artifacts||[]).slice(0,3)});
+  flowLatest=flowSeqN;
+  flowRender();
+}
+let flowSeqN=0;
+
+function flowRender(){
+  flowSvg.innerHTML='';
+  flowPanG=el('g');flowSvg.appendChild(flowPanG);flowApply();
+  const W=flowSvg.parentElement.clientWidth||800,H=flowSvg.parentElement.clientHeight||600;
+  const cx=W/2,cy=H/2;
+  flowSvg.setAttribute('viewBox',`0 0 ${W} ${H}`);
+  const cats=Object.keys(flowBranches);if(!cats.length)return;
+
+  // Center
+  const cg=el('g');
+  cg.appendChild(el('circle',{cx,cy,r:32,fill:'#161b22',stroke:'#bc8cff','stroke-width':2.5}));
+  const ct=el('text',{x:cx,y:cy+1,'text-anchor':'middle','dominant-baseline':'middle',fill:'#bc8cff','font-size':11,'font-weight':600,'font-family':'inherit'});
+  ct.textContent='⚡ project';cg.appendChild(ct);flowPanG.appendChild(cg);
+
+  const step=(2*Math.PI)/Math.max(cats.length,1),br=Math.min(W,H)*.28;
+  cats.forEach((cat,i)=>{
+    const a=step*i-Math.PI/2,bx=cx+Math.cos(a)*br,by=cy+Math.sin(a)*br;
+    const def=flowCats[cat],color=def.color;
+    flowPanG.appendChild(el('line',{x1:cx,y1:cy,x2:bx,y2:by,stroke:color,'stroke-width':2,'stroke-opacity':.6}));
+    const bg=el('g');
+    bg.appendChild(el('rect',{x:bx-60,y:by-14,width:120,height:28,rx:14,fill:'#161b22',stroke:color,'stroke-width':2}));
+    const bt=el('text',{x:bx,y:by+1,'text-anchor':'middle','dominant-baseline':'middle',fill:color,'font-size':11,'font-weight':600,'font-family':'inherit'});
+    bt.textContent=def.icon+' '+cat;bg.appendChild(bt);flowPanG.appendChild(bg);
+
+    flowBranches[cat].forEach((nd,ni)=>{
+      const dist=br+60+ni*70,nx=cx+Math.cos(a)*dist,ny=cy+Math.sin(a)*dist;
+      const pd=ni===0?br:br+60+(ni-1)*70,px=cx+Math.cos(a)*pd,py=cy+Math.sin(a)*pd;
+      const isL=nd.id===flowLatest;
+      const la={x1:px,y1:py,x2:nx,y2:ny,stroke:color,'stroke-width':1.5,'stroke-opacity':.6};
+      if(isL)la['stroke-dasharray']='6 3';
+      flowPanG.appendChild(el('line',la));
+      const g=el('g');
+      if(isL){g.style.opacity='0';g.style.transition='opacity .4s ease';requestAnimationFrame(()=>g.style.opacity='1');}
+      const h=44+nd.artifacts.length*16,w=200;
+      g.appendChild(el('rect',{x:nx-w/2,y:ny-h/2,width:w,height:h,rx:8,fill:'#161b22',stroke:isL?color:'#30363d','stroke-width':isL?2:1.5}));
+      const cm=el('text',{x:nx-w/2+10,y:ny-h/2+18,fill:color,'font-size':12,'font-weight':600,'font-family':'inherit'});cm.textContent=nd.cmd;g.appendChild(cm);
+      nd.artifacts.forEach((ar,ai)=>{const at=el('text',{x:nx-w/2+10,y:ny-h/2+38+ai*16,fill:'#3fb950','font-size':10,'font-family':'inherit'});at.textContent=ar.icon+' '+ar.name;g.appendChild(at);});
+      flowPanG.appendChild(g);
+    });
+  });
+}
+initFlowPan();
+
+// ============ NARRATIVE ============
+const narr = document.getElementById('narrative');
+
+// ============ SIMULATION ============
+const demo = [
+  {cmd:'mkdir my-app',                                          text:'Creating the project root — everything starts here.', artifacts:[{icon:'📁',name:'my-app/'}]},
+  {cmd:'npm init -y',                                           text:'Initializing Node.js project with package.json.', artifacts:[{icon:'📄',name:'package.json'}]},
+  {cmd:'npm install express',                                   text:'Installing Express — the API server framework.', artifacts:[{icon:'📦',name:'express'}]},
+  {cmd:'npm install mongoose',                                  text:'Adding MongoDB driver — the app will store data in a document database.', artifacts:[{icon:'📦',name:'mongoose'}]},
+  {cmd:'mkdir -p src/routes',                                   text:'Setting up source directory structure.', artifacts:[{icon:'📁',name:'src/routes'}]},
+  {cmd:'git init',                                              text:'Initializing version control.', artifacts:[{icon:'📁',name:'.git/'}]},
+  {cmd:'git commit -m "initial commit"',                        text:'First snapshot saved.', artifacts:[{icon:'💾',name:'initial commit'}]},
+  {cmd:'aws dynamodb create-table --table-name users',          text:'Creating a DynamoDB table — serverless NoSQL storage for user data.', artifacts:[{icon:'☁️',name:'users table'}]},
+  {cmd:'aws s3 mb s3://my-app-assets',                          text:'Creating an S3 bucket for static assets — images, CSS, JS bundles.', artifacts:[{icon:'☁️',name:'my-app-assets'}]},
+  {cmd:'aws lambda create-function --function-name processOrder',text:'Deploying a Lambda function — serverless compute for order processing.', artifacts:[{icon:'☁️',name:'processOrder'}]},
+  {cmd:'aws apigateway create-rest-api --name my-app-api',      text:'Setting up API Gateway — the front door for all HTTP requests.', artifacts:[{icon:'☁️',name:'my-app-api'}]},
+  {cmd:'aws sqs create-queue --queue-name order-events',        text:'Creating an SQS queue — decouples order processing for async handling.', artifacts:[{icon:'☁️',name:'order-events'}]},
+  {cmd:'aws sns create-topic --name notifications',             text:'Setting up SNS — push notifications fan out to SQS, Lambda, email.', artifacts:[{icon:'☁️',name:'notifications'}]},
+  {cmd:'aws cognito-idp create-user-pool --pool-name app-users',text:'Adding Cognito — handles user signup, login, and JWT tokens.', artifacts:[{icon:'☁️',name:'app-users'}]},
+  {cmd:'docker build -t my-app .',                              text:'Containerizing the Express server — portable, reproducible deployments.', artifacts:[{icon:'🐳',name:'my-app'}]},
+  {cmd:'aws cloudfront create-distribution --origin-domain my-app-assets.s3.amazonaws.com', text:'Setting up CloudFront CDN — caches assets at edge locations worldwide.', artifacts:[{icon:'☁️',name:'CDN distribution'}]},
+  {cmd:'terraform apply',                                       text:'Applying infrastructure as code — Terraform wires everything together.', artifacts:[{icon:'⬡',name:'infrastructure'}]},
+];
+
+let step = 0;
+const interval = setInterval(() => {
+  if (step >= demo.length) { clearInterval(interval); return; }
+  const d = demo[step++];
+
+  archAdd(d.cmd);
+  flowAdd(d.cmd, d.artifacts);
+
+  const entry = document.createElement('div');
+  entry.className = 'narr-entry';
+  const svcMatch = d.cmd.match(/^aws\s+(\S+)/);
+  const badge = svcMatch ? `<span class="svc-badge" style="background:#f90;color:#000">AWS ${svcMatch[1]}</span>` :
+                d.cmd.startsWith('docker') ? '<span class="svc-badge" style="background:#2496ed;color:#fff">Docker</span>' :
+                d.cmd.startsWith('terraform') ? '<span class="svc-badge" style="background:#7b42bc;color:#fff">Terraform</span>' : '';
+  entry.innerHTML = `<div class="cmd">${esc(d.cmd)}</div><div class="text">${esc(d.text)}</div>${badge}`;
+  narr.appendChild(entry);
+  narr.scrollTop = narr.scrollHeight;
+}, 1500);
+</script>
+</body>
+</html>

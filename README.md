@@ -1,0 +1,209 @@
+# ⚡ vibexplain
+
+See what your AI coding agent is actually doing — in real time.
+
+A live dashboard that intercepts every CLI command your vibe coding tool runs, explains it in plain English, and draws the architecture as it's being built.
+
+![status](https://img.shields.io/badge/status-alpha-blueviolet) ![license](https://img.shields.io/badge/license-MIT-green) ![node](https://img.shields.io/badge/node-%3E%3D18-blue)
+
+---
+
+## The problem
+
+You tell an AI agent to "build me a serverless API with auth" and it starts running commands. Dozens of them. You see terminal output scrolling by, but:
+
+- What did it just create?
+- Why did it install that package?
+- What AWS services are being wired together?
+- Is this thing building what I actually asked for?
+
+**vibexplain answers all of that**, live, as it happens.
+
+## Install
+
+```bash
+npm install -g vibexplain
+```
+
+## How to use with your AI coding tool
+
+### Kiro
+
+```bash
+vibexplain -- kiro-cli chat
+```
+
+Then start vibing. Every command Kiro runs shows up on the dashboard.
+
+### Claude Code
+
+```bash
+vibexplain -- claude "build me a todo app with DynamoDB"
+```
+
+### Cursor
+
+```bash
+vibexplain -- cursor-cli "add authentication with Cognito"
+```
+
+### Aider
+
+```bash
+vibexplain -- aider --model claude-3.5-sonnet
+```
+
+### Any agent
+
+```bash
+vibexplain -- <your-agent-command> [args...]
+```
+
+vibexplain wraps the agent process, captures its stdout/stderr, and explains every CLI command it runs. The agent works exactly as before — vibexplain just watches.
+
+### Pipe mode (alternative)
+
+If your agent doesn't work with wrapping:
+
+```bash
+your-agent 2>&1 | vibexplain
+```
+
+### Demo mode
+
+```bash
+vibexplain --demo
+# or
+npx vibexplain --demo
+```
+
+Streams sample commands including AWS services so you can see the dashboard in action without running a real agent.
+
+## What you see
+
+The dashboard opens automatically at `http://localhost:3777` with two views and a narrative panel.
+
+### 🧠 Mind Map
+
+An interactive branching diagram that groups every command by category — Package Management, Version Control, Containers, Infrastructure, etc. — radiating from a central node.
+
+- Zoom with mouse wheel, pan by dragging
+- +/−/reset buttons in the corner
+- New nodes animate in along their branch
+- Color-coded by category
+
+### 🏗️ Architecture
+
+A real-time architecture diagram that draws itself as your agent builds infrastructure. Think draw.io, but it builds itself live.
+
+**What it detects:**
+
+| Category | Services |
+|---|---|
+| AWS | Lambda, API Gateway, DynamoDB, S3, EC2, ECS, RDS, SQS, SNS, CloudFront, Cognito, IAM, VPC, Route 53, Secrets Manager, CloudWatch, Step Functions, EventBridge |
+| Containers | Docker, Kubernetes |
+| Infrastructure | Terraform |
+| App frameworks | Express, React, Next.js |
+| Databases | PostgreSQL, MongoDB, Redis |
+| Networking | Nginx |
+
+**How it works:**
+
+- Services appear in a logical grid following request flow: Entry → Auth → API → Compute → Messaging → Data → Infra
+- Arrows with arrowheads show connections between services (e.g., API Gateway → Lambda → DynamoDB)
+- The service currently being worked on **blinks** so you always know where the agent is
+- **Click any service box** to see:
+  - Every command executed against it
+  - What each command does (plain English)
+  - Flag explanations
+  - Artifacts created
+  - Connections to other services
+- **Spec-driven mode** — if a plan file exists (`PLAN.md`, `spec.md`, etc.), it pre-draws a skeleton architecture that lights up as commands fulfill each piece
+
+### 📖 Narrative panel
+
+A running story on the right explaining what's happening and why. Drag the divider to make it wider or narrower.
+
+### 🌙 / ☀️ Theme
+
+Click the toggle in the header to switch between dark and light mode. Your preference is saved.
+
+## What it understands
+
+vibexplain has a built-in knowledge base covering 50+ CLI tools:
+
+| Category | Tools |
+|---|---|
+| Project Setup | `mkdir`, `touch`, `cp`, `mv`, `rm`, `chmod`, `ln`, `tar`, `find` |
+| Package Mgmt | `npm`, `npx`, `yarn`, `pnpm`, `pip`, `cargo`, `brew`, `gem`, `bundler`, `go` |
+| Version Control | `git` (20+ subcommands) |
+| Containers | `docker`, `kubectl` |
+| Infrastructure | `terraform`, `aws`, `ssh`, `scp` |
+| Run & Execute | `node`, `python`, `ruby`, `curl`, `wget`, `make`, `cmake` |
+| Text & Search | `grep`, `sed`, `awk`, `cat`, `head`, `tail`, `wc`, `sort`, `uniq` |
+
+For each command it provides:
+- Tool description
+- Subcommand explanation
+- Flag meanings
+- Detected artifacts (files, directories, dependencies, containers, cloud resources)
+
+Compound commands are handled too: `&&`, `||`, `|`, `;`, `$(...)` — each part explained independently.
+
+## Spec-driven architecture
+
+If your project has a plan file, vibexplain reads it and pre-draws a skeleton architecture:
+
+```bash
+# Any of these files in your project root:
+PLAN.md
+plan.md
+spec.md
+SPEC.md
+TODO.md
+CLAUDE.md
+```
+
+The skeleton shows greyed-out service boxes. As the agent runs commands that match each service, the boxes light up and connections appear. You can see at a glance how much of the plan has been built.
+
+## Configuration
+
+| Variable | Default | Description |
+|---|---|---|
+| `VIBEXPLAIN_PORT` | `3777` | Dashboard server port |
+
+## Project structure
+
+```
+src/
+  cli.js          — CLI entry point (wrap, pipe, demo modes)
+  server.js       — HTTP + WebSocket server + plan file watcher
+  explainer.js    — Command knowledge base (50+ tools)
+  artifacts.js    — Detects files/dirs/deps/containers/cloud resources
+  open.js         — Opens dashboard in default browser
+dashboard/
+  index.html      — Dashboard shell (2 tabs + theme toggle)
+  style.css       — Dark + light theme styles
+  app.js          — WebSocket client, narrative, theme, divider
+  mindmap.js      — Interactive SVG mind map with zoom/pan
+  arch.js         — Live architecture diagram with 28 service types
+```
+
+## Zero dependencies (almost)
+
+vibexplain uses only Node.js built-ins plus `ws` for WebSocket support. No bundler, no framework, no build step. Install and run.
+
+## Development
+
+```bash
+git clone https://github.com/raghavkv85/vibexplain.git
+cd vibexplain
+npm install
+npm run demo
+```
+
+Open `preview.html` in a browser for a standalone simulation (no server needed).
+
+## License
+
+MIT
