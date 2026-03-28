@@ -1,6 +1,6 @@
 # ⚡ vibexplain
 
-See what your AI coding agent is actually doing — in real time.
+See what your AI coding agent is actually doing in real time.
 
 A live dashboard that intercepts every CLI command your vibe coding tool runs, explains it in plain English, and draws the architecture as it's being built.
 
@@ -65,7 +65,7 @@ vibexplain -- aider --model claude-3.5-sonnet
 vibexplain -- <your-agent-command> [args...]
 ```
 
-vibexplain wraps the agent process, captures its stdout/stderr, and explains every CLI command it runs. The agent works exactly as before — vibexplain just watches.
+vibexplain wraps the agent process, captures its stdout/stderr, and explains every CLI command it runs. The agent works exactly as before vibexplain just watches.
 
 ### Pipe mode (alternative)
 
@@ -91,7 +91,7 @@ The dashboard opens automatically at `http://localhost:3777` with two views and 
 
 ### 🧠 Mind Map
 
-An interactive branching diagram that groups every command by category — Package Management, Version Control, Containers, Infrastructure, etc. — radiating from a central node.
+An interactive branching diagram that groups every command by category: Package Management, Version Control, Containers, Infrastructure, etc. radiating from a central node.
 
 - Zoom with mouse wheel, pan by dragging
 - +/−/reset buttons in the corner
