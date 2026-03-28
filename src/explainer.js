@@ -225,6 +225,53 @@ const knowledge = {
     logs: 'Shows logs from a container in a pod',
     exec: 'Runs a command inside a running pod',
   },
+  // GCP
+  gcloud: {
+    _desc: 'Google Cloud CLI — manages GCP resources',
+    functions: 'Manages Cloud Functions (serverless compute)',
+    run: 'Manages Cloud Run services (containerized apps)',
+    storage: 'Manages Cloud Storage buckets and objects',
+    pubsub: 'Manages Pub/Sub topics and subscriptions',
+    sql: 'Manages Cloud SQL database instances',
+    container: 'Manages GKE Kubernetes clusters',
+    firestore: 'Manages Firestore document databases',
+    bigquery: 'Manages BigQuery datasets and queries',
+  },
+  gsutil: { _desc: 'Google Cloud Storage CLI — copies, syncs, and manages objects in GCS buckets' },
+  bq: { _desc: 'BigQuery CLI — runs queries and manages datasets in Google BigQuery' },
+  // Azure
+  az: {
+    _desc: 'Azure CLI — manages Microsoft Azure resources',
+    functionapp: 'Manages Azure Functions (serverless compute)',
+    webapp: 'Manages Azure App Service web apps',
+    cosmosdb: 'Manages Cosmos DB (globally distributed database)',
+    storage: 'Manages Azure Storage accounts, blobs, and queues',
+    servicebus: 'Manages Azure Service Bus messaging',
+    aks: 'Manages Azure Kubernetes Service clusters',
+    sql: 'Manages Azure SQL databases',
+  },
+  // Platforms
+  vercel: { _desc: 'Vercel CLI — deploys frontend apps and serverless functions', deploy: 'Deploys the project to Vercel' },
+  netlify: { _desc: 'Netlify CLI — deploys sites and manages serverless functions', deploy: 'Deploys the site to Netlify' },
+  firebase: { _desc: 'Firebase CLI — manages Firebase projects (auth, hosting, Firestore)', deploy: 'Deploys to Firebase Hosting and Cloud Functions', init: 'Initializes Firebase in the current project' },
+  supabase: { _desc: 'Supabase CLI — manages Supabase projects (Postgres, auth, storage)', init: 'Initializes a Supabase project', start: 'Starts local Supabase services' },
+  fly: { _desc: 'Fly.io CLI — deploys apps to edge servers worldwide', deploy: 'Deploys the app to Fly.io', launch: 'Creates and configures a new Fly app' },
+  flyctl: { _desc: 'Fly.io CLI — deploys apps to edge servers worldwide' },
+  railway: { _desc: 'Railway CLI — deploys apps with managed infrastructure', up: 'Deploys the project to Railway' },
+  heroku: { _desc: 'Heroku CLI — manages Heroku apps and add-ons', create: 'Creates a new Heroku app' },
+  // IaC
+  pulumi: { _desc: 'Pulumi — infrastructure as code using real programming languages', up: 'Creates or updates infrastructure', preview: 'Shows what changes would be made', destroy: 'Tears down all managed infrastructure' },
+  serverless: { _desc: 'Serverless Framework — deploys serverless apps to any cloud', deploy: 'Deploys the service to the cloud provider' },
+  sls: { _desc: 'Serverless Framework (shorthand) — deploys serverless apps', deploy: 'Deploys the service' },
+  wrangler: { _desc: 'Cloudflare Workers CLI — deploys edge functions and sites', deploy: 'Deploys to Cloudflare Workers', dev: 'Starts a local development server' },
+  // Data tools
+  snowsql: { _desc: 'Snowflake CLI — runs SQL queries against Snowflake data warehouse' },
+  databricks: { _desc: 'Databricks CLI — manages Databricks workspaces, jobs, and clusters' },
+  dbt: { _desc: 'dbt — transforms data in your warehouse using SQL models', run: 'Runs all dbt models', test: 'Runs data tests', build: 'Runs and tests all models' },
+  airflow: { _desc: 'Apache Airflow — orchestrates data pipelines and workflows' },
+  psql: { _desc: 'PostgreSQL interactive terminal — runs SQL queries against a Postgres database' },
+  mongosh: { _desc: 'MongoDB Shell — interactive interface to query and manage MongoDB' },
+  mysql: { _desc: 'MySQL CLI — runs SQL queries against a MySQL database' },
 };
 
 // Flags that are common across many tools
