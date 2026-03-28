@@ -96,16 +96,20 @@ An interactive branching diagram that groups every command by category — Packa
 
 A real-time architecture diagram that draws itself as your agent builds infrastructure. Think draw.io, but it builds itself live.
 
-**What it detects:**
+**What it detects (121 services):**
 
 | Category | Services |
 |---|---|
-| AWS | Lambda, API Gateway, DynamoDB, S3, EC2, ECS, RDS, SQS, SNS, CloudFront, Cognito, IAM, VPC, Route 53, Secrets Manager, CloudWatch, Step Functions, EventBridge |
-| Containers | Docker, Kubernetes |
-| Infrastructure | Terraform |
-| App frameworks | Express, React, Next.js |
-| Databases | PostgreSQL, MongoDB, Redis |
-| Networking | Nginx |
+| AWS (39) | Lambda, API Gateway, DynamoDB, S3, EC2, ECS, RDS, SQS, SNS, CloudFront, Cognito, IAM, VPC, Route 53, Secrets Manager, CloudWatch, Step Functions, EventBridge, Kinesis, Redshift, Glue, Athena, SageMaker, Bedrock, Amplify, AppSync, SES, ECR, CodePipeline, CodeBuild, CloudFormation, Elastic Beanstalk, WAF, KMS, SSM, EFS, Aurora, ElastiCache, EMR |
+| GCP (25) | Cloud Functions, Cloud Run, Cloud Storage, BigQuery, Firestore, Pub/Sub, GKE, Cloud SQL, Compute Engine, Artifact Registry, Cloud CDN, Cloud DNS, Memorystore, Spanner, Bigtable, Dataflow, Dataproc, Vertex AI, Cloud Tasks, Cloud Scheduler, Secret Manager, IAP, Load Balancer, Cloud Build |
+| Azure (22) | Azure Functions, App Service, Cosmos DB, Blob Storage, Service Bus, AKS, Azure SQL, Azure VM, Azure CDN, DNS, Cache, Event Hubs, Key Vault, Container Apps, Front Door, Logic Apps, SignalR, Monitor, Azure OpenAI, DevOps, Synapse, Data Factory |
+| Platforms | Vercel, Netlify, Firebase, Supabase, Fly.io, Railway, Heroku |
+| Containers & IaC | Docker, Kubernetes, Terraform, Pulumi, Serverless Framework, Cloudflare Workers |
+| App frameworks | Express, React, Next.js, Django, Flask, FastAPI |
+| Databases | PostgreSQL, MongoDB, Redis, MySQL, Elasticsearch |
+| Data & Analytics | Snowflake, Databricks, Kafka, Airflow, dbt, Spark |
+| SaaS & APIs | Stripe, Twilio, SendGrid, Slack, Auth0 |
+| Networking | Nginx, Cloudflare |
 
 **How it works:**
 
@@ -186,7 +190,7 @@ dashboard/
   style.css       — Dark + light theme styles
   app.js          — WebSocket client, narrative, theme, divider
   mindmap.js      — Interactive SVG mind map with zoom/pan
-  arch.js         — Live architecture diagram with 28 service types
+  arch.js         — Live architecture diagram with 121 service types
 ```
 
 ## Zero dependencies (almost)
