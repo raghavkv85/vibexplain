@@ -19,6 +19,12 @@ You tell an AI agent to "build me a serverless API with auth" and it starts runn
 
 **vibexplain answers all of that**, live, as it happens.
 
+### Mind Map
+![Mind Map](docs/screenshots/mindmap.png)
+
+### Architecture
+![Architecture](docs/screenshots/architecture.png)
+
 ## Install
 
 ```bash
