@@ -14,7 +14,7 @@ You tell an AI agent to "build me a serverless API with auth" and it starts runn
 
 - What did it just create?
 - Why did it install that package?
-- What AWS services are being wired together?
+- What services are being wired together?
 - Is this thing building what I actually asked for?
 
 **vibexplain answers all of that**, live, as it happens.
