@@ -87,7 +87,7 @@ Streams sample commands including AWS services so you can see the dashboard in a
 
 ## What you see
 
-The dashboard opens automatically at `http://localhost:3777` with two views and a narrative panel.
+The dashboard opens automatically at `http://localhost:3777` with three views and a narrative panel.
 
 ### 🧠 Mind Map
 
@@ -129,6 +129,31 @@ A real-time architecture diagram that draws itself as your agent builds infrastr
   - Artifacts created
   - Connections to other services
 - **Spec-driven mode** — if a plan file exists (`PLAN.md`, `spec.md`, etc.), it pre-draws a skeleton architecture that lights up as commands fulfill each piece
+
+### 🔗 Knowledge Graph
+
+A force-directed network that shows how everything the agent builds connects together. While the Mind Map groups commands by category and Architecture maps cloud services, the Knowledge Graph reveals the relationships between all entities: files, packages, services, configs, and endpoints.
+
+- Nodes represent artifacts (files, packages, services, configs, containers, endpoints)
+- Edges represent semantic relationships (creates, depends-on, deploys-to, configures, imports)
+- Node size scales with degree centrality (more connections = bigger node)
+- Colors indicate communities (clusters of tightly connected entities)
+- **Hover any node** to highlight its blast radius, showing all connected entities while dimming the rest
+- **Click a node** to see its full detail: every relationship, every command that touched it, and its community membership
+- Degree badges show connection counts at a glance
+- Zoom/pan controls match the Mind Map
+- Graph builds itself in real time as commands stream in, with physics simulation settling nodes into natural positions
+
+**What it extracts:**
+
+Triplets are extracted from 20+ command patterns covering package managers (npm, yarn, pnpm, pip, cargo), git operations, Docker, Terraform, AWS/GCP/Azure CLIs, platform deploys (Vercel, Netlify, etc.), kubectl, file operations, and more. Each command produces Subject-Predicate-Object relationships like:
+
+```
+package.json --depends-on--> express
+Dockerfile   --builds------> my-app
+processOrder --hosted-on----> Lambda
+my-app       --runs-as------> my-app container
+```
 
 ### 📖 Narrative panel
 
@@ -186,17 +211,19 @@ The skeleton shows greyed-out service boxes. As the agent runs commands that mat
 
 ```
 src/
-  cli.js          — CLI entry point (wrap, pipe, demo modes)
-  server.js       — HTTP + WebSocket server + plan file watcher
-  explainer.js    — Command knowledge base (50+ tools)
-  artifacts.js    — Detects files/dirs/deps/containers/cloud resources
-  open.js         — Opens dashboard in default browser
+  cli.js          - CLI entry point (wrap, pipe, demo modes)
+  server.js       - HTTP + WebSocket server + plan file watcher
+  explainer.js    - Command knowledge base (50+ tools)
+  artifacts.js    - Detects files/dirs/deps/containers/cloud resources
+  triplets.js     - SPO triplet extraction for knowledge graph (20+ patterns)
+  open.js         - Opens dashboard in default browser
 dashboard/
-  index.html      — Dashboard shell (2 tabs + theme toggle)
-  style.css       — Dark + light theme styles
-  app.js          — WebSocket client, narrative, theme, divider
-  mindmap.js      — Interactive SVG mind map with zoom/pan
-  arch.js         — Live architecture diagram with 121 service types
+  index.html      - Dashboard shell (3 tabs + theme toggle)
+  style.css       - Dark + light theme styles
+  app.js          - WebSocket client, narrative, theme, divider
+  mindmap.js      - Interactive SVG mind map with zoom/pan
+  arch.js         - Live architecture diagram with 121 service types
+  graph.js        - Force-directed knowledge graph with blast radius
 ```
 
 ## Zero dependencies (almost)
