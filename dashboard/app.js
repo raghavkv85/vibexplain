@@ -51,6 +51,7 @@ function connect() {
     renderNarrative(event);
     window.mindmap.addNode(event);
     window.arch.addCommand(event);
+    window.knowledgeGraph.addEvent(event);
   };
 }
 

@@ -174,9 +174,25 @@ section h2 {
 
 /* Mind map SVG */
 #mindmap-view { position: relative; }
+#graph-view { position: relative; }
 #mindmap { background: var(--bg); }
 #flow-svg { background: var(--bg); }
 #arch-svg { background: var(--bg); }
+#graph-svg { background: var(--bg); }
+
+/* Knowledge Graph */
+.graph-stats {
+  position: absolute;
+  top: 12px;
+  left: 16px;
+  font-size: 11px;
+  color: var(--dim);
+  z-index: 10;
+  background: var(--surface);
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+}
 
 .zoom-controls {
   position: absolute;

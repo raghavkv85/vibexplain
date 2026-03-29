@@ -2,6 +2,7 @@
 import { startServer } from './server.js';
 import { explain } from './explainer.js';
 import { detectArtifacts } from './artifacts.js';
+import { extractTriplets } from './triplets.js';
 import { spawn } from 'child_process';
 import { createInterface } from 'readline';
 import { openDashboard } from './open.js';
@@ -30,12 +31,14 @@ function handleLine(line) {
   const explanation = explain(cleaned);
   if (!explanation) return;
   const artifacts = detectArtifacts(cleaned);
+  const triplets = extractTriplets(cleaned);
   broadcast({
     id: ++seq,
     ts: Date.now(),
     raw: cleaned,
     explanation: Array.isArray(explanation) ? explanation : [explanation],
     artifacts,
+    triplets,
   });
   console.log(`\x1b[36m  #${seq}\x1b[0m ${cleaned}`);
 }
