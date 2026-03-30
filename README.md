@@ -25,11 +25,26 @@ You tell an AI agent to "build me a serverless API with auth" and it starts runn
 ### Architecture
 ![Architecture](docs/screenshots/architecture.png)
 
+## Prerequisites
+
+- [Node.js](https://nodejs.org/) v18 or later (includes npm)
+
+To check if you have it:
+
+```bash
+node -v   # should print v18.x or higher
+npm -v    # should print a version number
+```
+
+If not installed, download it from [nodejs.org](https://nodejs.org/) — the LTS version is recommended.
+
 ## Install
 
 ```bash
 npm install -g vibexplain
 ```
+
+No `npm login` required — this is a public package.
 
 ## How to use with your AI coding tool
 

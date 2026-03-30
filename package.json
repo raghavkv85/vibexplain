@@ -4,7 +4,7 @@
   "description": "See what CLI commands your AI coding agent runs — and understand what they do and why. Live dashboard with mind map, architecture diagram, and plain-english explanations.",
   "type": "module",
   "bin": {
-    "vibexplain": "./src/cli.js"
+    "vibexplain": "src/cli.js"
   },
   "scripts": {
     "start": "node src/cli.js",
@@ -28,7 +28,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/raghavkv85/vibexplain.git"
+    "url": "git+https://github.com/raghavkv85/vibexplain.git"
   },
   "dependencies": {
     "ws": "^8.20.0"
