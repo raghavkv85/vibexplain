@@ -1,6 +1,6 @@
 # ⚡ vibexplain
 
-See what your AI coding agent is actually doing — in real time.
+See what your AI coding agent is actually doing in real time.
 
 ![status](https://img.shields.io/badge/status-alpha-blueviolet) ![license](https://img.shields.io/badge/license-MIT-green) ![node](https://img.shields.io/badge/node-%3E%3D18-blue)
 
