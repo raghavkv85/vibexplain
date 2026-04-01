@@ -21,6 +21,7 @@ Requires [Node.js](https://nodejs.org/) v18+.
 
 ## Usage
 
+(E.g. Kiro - Terminal)
 ```bash
 # Terminal 1
 cd your-project
