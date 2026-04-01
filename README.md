@@ -48,7 +48,7 @@ vibexplain scans your project on startup — git history, package.json, Terrafor
 | Tool | What you do | What vibexplain sees |
 |---|---|---|
 | **Kiro** | `cd your-project && vibexplain` in Terminal 1, then `kiro-cli chat` in Terminal 2 | Scanner bootstraps dashboard (git, deps, IaC with real names), then file watcher tracks new changes |
-| **Claude Code** | `cd your-project && vibexplain` in Terminal 1, then `claude` in Terminal 2 | Scanner bootstraps + JSONL tailer captures exact commands going forward |
+| **Claude Code CLI, Codex CLI** | `cd your-project && vibexplain` in Terminal 1, then `claude` in Terminal 2 | Scanner bootstraps + JSONL tailer captures exact commands going forward |
 | **Cursor / Windsurf** | `cd your-project && vibexplain` in Terminal 1, use IDE normally | Scanner bootstraps + file watcher tracks changes |
 | **Aider** | `cd your-project && vibexplain` in Terminal 1, then `aider` in Terminal 2 | Scanner bootstraps + file watcher tracks changes |
 
