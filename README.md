@@ -8,9 +8,6 @@ See what your AI coding agent is actually doing — in real time.
 
 You tell an AI agent to "build me a serverless API with auth" and it starts running. But what is it actually doing? vibexplain shows you — a live dashboard with a mind map, architecture diagram, and plain-English explanations.
 
-![Mind Map](docs/screenshots/mindmap.png)
-![Architecture](docs/screenshots/architecture.png)
-
 ## Install
 
 ```bash
