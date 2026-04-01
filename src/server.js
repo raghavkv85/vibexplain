@@ -1,12 +1,13 @@
 import { createServer } from 'http';
-import { readFileSync, existsSync, watchFile } from 'fs';
+import { readFileSync, existsSync, watchFile, mkdirSync, writeFileSync, readdirSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { WebSocketServer } from 'ws';
 
 const __dir = dirname(fileURLToPath(import.meta.url));
 const dashDir = join(__dir, '..', 'dashboard');
-const mime = { '.html': 'text/html', '.css': 'text/css', '.js': 'text/javascript' };
+const mime = { '.html': 'text/html', '.css': 'text/css', '.js': 'text/javascript', '.json': 'application/json' };
+const sessDir = join(process.cwd(), '.vibexplain', 'sessions');
 
 const planFiles = ['PLAN.md', 'plan.md', 'spec.md', 'SPEC.md', 'TODO.md', 'CLAUDE.md'];
 
@@ -25,6 +26,35 @@ function parsePlan(content) {
 export function startServer(port = 3777) {
   const history = [];
   let planData = null;
+
+  // Session persistence
+  mkdirSync(sessDir, { recursive: true });
+  const sessionId = new Date().toISOString().replace(/[:.]/g, '-');
+  const sessionFile = join(sessDir, `${sessionId}.json`);
+  const sessionEvents = [];
+
+  function saveSession() {
+    if (!sessionEvents.length) return;
+    writeFileSync(sessionFile, JSON.stringify({ id: sessionId, started: sessionEvents[0].ts, events: sessionEvents }, null, 2));
+  }
+
+  function loadSessions() {
+    try {
+      return readdirSync(sessDir)
+        .filter(f => f.endsWith('.json'))
+        .sort().reverse()
+        .map(f => {
+          try {
+            const data = JSON.parse(readFileSync(join(sessDir, f), 'utf-8'));
+            return { id: data.id, started: data.started, count: data.events?.length || 0, file: f };
+          } catch { return null; }
+        }).filter(Boolean);
+    } catch { return []; }
+  }
+
+  function loadSession(file) {
+    try { return JSON.parse(readFileSync(join(sessDir, file), 'utf-8')); } catch { return null; }
+  }
 
   // Watch for plan files
   function checkPlanFiles() {
@@ -48,6 +78,21 @@ export function startServer(port = 3777) {
   const server = createServer((req, res) => {
     const url = req.url.split('?')[0];
     if (url === '/favicon.ico') { res.writeHead(204); res.end(); return; }
+
+    // API endpoints for session history
+    if (url === '/api/sessions') {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(loadSessions()));
+      return;
+    }
+    if (url.startsWith('/api/session/')) {
+      const file = url.slice('/api/session/'.length) + '.json';
+      const data = loadSession(file);
+      res.writeHead(data ? 200 : 404, { 'Content-Type': 'application/json' });
+      res.end(data ? JSON.stringify(data) : '{"error":"not found"}');
+      return;
+    }
+
     const file = url === '/' ? '/index.html' : url;
     const ext = file.slice(file.lastIndexOf('.'));
     try {
@@ -77,6 +122,7 @@ export function startServer(port = 3777) {
     broadcast(data) {
       const msg = JSON.stringify(data);
       history.push(msg);
+      if (data.id) { sessionEvents.push(data); saveSession(); }
       for (const client of wss.clients) {
         if (client.readyState === 1) client.send(msg);
       }

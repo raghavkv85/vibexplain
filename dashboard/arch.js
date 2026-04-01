@@ -2,6 +2,49 @@
 (function() {
 const archNS = 'http://www.w3.org/2000/svg';
 const archSvg = document.getElementById('arch-svg');
+const archPan = document.createElementNS(archNS, 'g');
+archSvg.appendChild(archPan);
+
+// Zoom/pan state
+let aZoom = 1, aViewX = 0, aViewY = 0, aIsPanning = false, aPanX = 0, aPanY = 0;
+
+function applyArchTransform() {
+  archPan.setAttribute('transform', `translate(${aViewX},${aViewY}) scale(${aZoom})`);
+}
+
+(function initArchZoomPan() {
+  const container = document.getElementById('arch-view');
+  const controls = document.createElement('div');
+  controls.className = 'zoom-controls';
+  controls.innerHTML = '<button class="zoom-btn" data-action="in">+</button><button class="zoom-btn" data-action="out">−</button><button class="zoom-btn" data-action="reset">⌂</button>';
+  container.appendChild(controls);
+  controls.addEventListener('click', (e) => {
+    const a = e.target.dataset.action;
+    if (a === 'in') aZoom = Math.min(3, aZoom * 1.3);
+    else if (a === 'out') aZoom = Math.max(0.2, aZoom / 1.3);
+    else if (a === 'reset') { aZoom = 1; aViewX = 0; aViewY = 0; }
+    applyArchTransform();
+  });
+  container.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    aZoom = Math.max(0.2, Math.min(3, aZoom * (e.deltaY > 0 ? 0.9 : 1.1)));
+    applyArchTransform();
+  }, { passive: false });
+  container.addEventListener('mousedown', (e) => {
+    if (e.target.closest('.zoom-controls') || e.target.closest('.detail-overlay')) return;
+    aIsPanning = true; aPanX = e.clientX; aPanY = e.clientY;
+    container.style.cursor = 'grabbing';
+  });
+  window.addEventListener('mousemove', (e) => {
+    if (!aIsPanning) return;
+    aViewX += (e.clientX - aPanX) / aZoom;
+    aViewY += (e.clientY - aPanY) / aZoom;
+    aPanX = e.clientX; aPanY = e.clientY;
+    applyArchTransform();
+  });
+  window.addEventListener('mouseup', () => { aIsPanning = false; document.getElementById('arch-view').style.cursor = 'grab'; });
+  container.style.cursor = 'grab';
+})();
 
 const serviceCatalog = {
   // AWS
@@ -397,6 +440,10 @@ function addCommand(event) {
   let changed = false;
   for (const id of Object.keys(activeServices)) activeServices[id].isLatest = false;
 
+  // Extract resource name from command
+  const nameMatch = cmd.match(/--(?:table-name|function-name|queue-name|name|pool-name|cluster-name|cache-cluster-id|db-instance-identifier)\s+(\S+)/);
+  const resourceName = nameMatch ? nameMatch[1] : null;
+
   for (const [id, patterns] of Object.entries(detectPatterns)) {
     const matches = patterns.some(re => re.test(cmd));
     if (!matches) continue;
@@ -405,10 +452,12 @@ function addCommand(event) {
     if (activeServices[id]) {
       activeServices[id].isLatest = true;
       activeServices[id].skeleton = false;
+      if (resourceName && !activeServices[id].resources) activeServices[id].resources = [];
+      if (resourceName && !activeServices[id].resources?.includes(resourceName)) activeServices[id].resources.push(resourceName);
       latestServiceId = id;
       changed = true;
     } else {
-      activeServices[id] = { ...serviceCatalog[id], id, isLatest: true };
+      activeServices[id] = { ...serviceCatalog[id], id, isLatest: true, resources: resourceName ? [resourceName] : [] };
       latestServiceId = id;
       changed = true;
     }
@@ -417,16 +466,21 @@ function addCommand(event) {
 }
 
 function render() {
-  archSvg.innerHTML = '';
+  // Keep defs on archSvg, clear only archPan
+  archPan.innerHTML = '';
+  // Remove old defs
+  const oldDefs = archSvg.querySelector('defs');
+  if (oldDefs) oldDefs.remove();
+
   const ids = Object.keys(activeServices);
   if (!ids.length) {
     const t = el('text', {x:500,y:320,'text-anchor':'middle',fill:themeColor('--dim'),'font-size':14,'font-family':'inherit'});
     t.textContent = 'Architecture will appear as services are detected…';
-    archSvg.appendChild(t);
+    archPan.appendChild(t);
     return;
   }
 
-  // Marker defs for arrowheads
+  // Marker defs for arrowheads — on archSvg, not archPan, so transforms don't affect them
   const defs = el('defs');
   const colors = new Set(ids.map(id => serviceCatalog[id]?.color).filter(Boolean));
   for (const c of colors) {
@@ -434,34 +488,31 @@ function render() {
     m.appendChild(el('polygon',{points:'0 0, 10 3.5, 0 7',fill:c}));
     defs.appendChild(m);
   }
-  archSvg.appendChild(defs);
+  archSvg.insertBefore(defs, archPan);
 
-  const nW = 140, nH = 64, gX = 20, gY = 16, padL = 90, padT = 30;
+  const nW = 140, nH = 64, gX = 30, gY = 20, padL = 30, padT = 50;
   const positions = {};
 
-  // Find active rows
-  const activeRows = new Set();
-  for (const id of ids) { const lp = layout[id]; if (lp) activeRows.add(lp.row); }
-  const sortedRows = [...activeRows].sort((a,b) => a - b);
-  const rowYMap = {};
-  sortedRows.forEach((r, i) => { rowYMap[r] = padT + i * (nH + gY + 20); });
+  // Horizontal layout: rows become columns (left-to-right flow)
+  const activeCols = new Set();
+  for (const id of ids) { const lp = layout[id]; if (lp) activeCols.add(lp.row); }
+  const sortedCols = [...activeCols].sort((a,b) => a - b);
+  const colXMap = {};
+  sortedCols.forEach((c, i) => { colXMap[c] = padL + i * (nW + gX + 20); });
 
-  // Position nodes
+  // Position nodes: layout.row → x column, layout.col → y position within column
   for (const id of ids) {
     const lp = layout[id];
     if (!lp) continue;
-    const x = padL + lp.col * (nW + gX);
-    const y = rowYMap[lp.row];
+    const x = colXMap[lp.row];
+    const y = padT + lp.col * (nH + gY);
     positions[id] = { x, y, w: nW, h: nH };
   }
 
-  // Row labels
-  for (const row of sortedRows) {
-    const y = rowYMap[row] + nH / 2;
-    const t = el('text',{x:12,y,'text-anchor':'start','dominant-baseline':'middle',fill:themeColor('--dim'),'font-size':10,'font-weight':600,'font-family':'inherit','letter-spacing':'1'});
-    t.textContent = rowLabels[row] || '';
-    archSvg.appendChild(t);
-  }
+  // Use row as column grouping for labels
+  const sortedRows = sortedCols;
+
+  // Row labels are now part of group boxes
 
   // Draw connections (behind nodes)
   for (const [a, b] of connections) {
@@ -486,9 +537,36 @@ function render() {
     else d = `M${x1},${y1} C${midX},${y1} ${midX},${y2} ${x2},${y2}`;
 
     const col = serviceCatalog[a]?.color || '#484f58';
-    archSvg.appendChild(el('path',{d,fill:'none',stroke:col,'stroke-width':1.5,'stroke-opacity':0.5,
+    archPan.appendChild(el('path',{d,fill:'none',stroke:col,'stroke-width':1.5,'stroke-opacity':0.5,
       'marker-end':`url(#ah${col.replace('#','')})`,
       'stroke-dasharray':'300','stroke-dashoffset':'300',style:'animation:archDraw 0.8s ease forwards'}));
+  }
+
+  // Draw group boxes (dashed borders around services in same column/tier)
+  const colGroups = {};
+  for (const id of ids) {
+    const lp = layout[id];
+    if (!lp || !positions[id]) continue;
+    const svc = activeServices[id];
+    if (svc.skeleton) continue;
+    (colGroups[lp.row] ||= []).push(positions[id]);
+  }
+  for (const [col, posArr] of Object.entries(colGroups)) {
+    if (posArr.length < 1) continue;
+    const minX = Math.min(...posArr.map(p => p.x)) - 16;
+    const maxX = Math.max(...posArr.map(p => p.x)) + nW + 16;
+    const minY = Math.min(...posArr.map(p => p.y)) - 28;
+    const maxY = Math.max(...posArr.map(p => p.y)) + nH + 16;
+    archPan.appendChild(el('rect', {
+      x: minX, y: minY, width: maxX - minX, height: maxY - minY, rx: 12,
+      fill: 'none', stroke: themeColor('--border'), 'stroke-width': 1, 'stroke-dasharray': '6 4', opacity: 0.6,
+    }));
+    const label = rowLabels[parseInt(col)] || '';
+    if (label) {
+      const lt = el('text', { x: minX + 8, y: minY + 12, fill: themeColor('--dim'), 'font-size': 9, 'font-weight': 600, 'letter-spacing': '1', 'font-family': 'inherit' });
+      lt.textContent = label;
+      archPan.appendChild(lt);
+    }
   }
 
   // Draw service boxes
@@ -499,17 +577,19 @@ function render() {
     const cat = serviceCatalog[id];
     const isSkeleton = svc.skeleton;
     const isLatest = svc.isLatest;
+    const resources = svc.resources || [];
+    const hasResources = resources.length > 0 && !isSkeleton;
+    const boxH = hasResources ? nH + resources.length * 14 + 4 : nH;
     const g = el('g',{style: isSkeleton ? '' : 'animation:archFade 0.5s ease; cursor:pointer'});
 
-    // Blinking border on active service
     if (isLatest) {
-      g.appendChild(el('rect',{x:p.x-4,y:p.y-4,width:nW+8,height:nH+8,rx:12,
+      g.appendChild(el('rect',{x:p.x-4,y:p.y-4,width:nW+8,height:boxH+8,rx:12,
         fill:'none',stroke:cat.color,'stroke-width':3,
         style:'animation:archBlink 0.8s ease-in-out infinite'}));
     }
 
     g.appendChild(el('rect',{
-      x:p.x, y:p.y, width:nW, height:nH, rx:10,
+      x:p.x, y:p.y, width:nW, height:boxH, rx:10,
       fill: isSkeleton ? 'none' : themeColor('--surface'),
       stroke: isSkeleton ? themeColor('--border') : cat.color,
       'stroke-width': isLatest ? 2.5 : isSkeleton ? 1 : 2,
@@ -517,13 +597,22 @@ function render() {
       opacity: isSkeleton ? 0.3 : 1,
     }));
 
-    const iconT = el('text',{x:p.x+nW/2,y:p.y+24,'text-anchor':'middle',fill: isSkeleton ? themeColor('--border') : cat.color,'font-size':20,'font-family':'inherit'});
+    const iconT = el('text',{x:p.x+nW/2,y:p.y+22,'text-anchor':'middle',fill: isSkeleton ? themeColor('--border') : cat.color,'font-size':18,'font-family':'inherit'});
     iconT.textContent = cat.icon;
     g.appendChild(iconT);
 
-    const labelT = el('text',{x:p.x+nW/2,y:p.y+46,'text-anchor':'middle',fill: isSkeleton ? themeColor('--border') : cat.color,'font-size':11,'font-weight':600,'font-family':'inherit'});
+    const labelT = el('text',{x:p.x+nW/2,y:p.y+40,'text-anchor':'middle',fill: isSkeleton ? themeColor('--border') : cat.color,'font-size':11,'font-weight':600,'font-family':'inherit'});
     labelT.textContent = cat.label;
     g.appendChild(labelT);
+
+    // Resource names under service label
+    if (hasResources) {
+      resources.forEach((r, ri) => {
+        const rt = el('text',{x:p.x+nW/2,y:p.y+54+ri*14,'text-anchor':'middle',fill:themeColor('--dim'),'font-size':9,'font-family':'inherit'});
+        rt.textContent = r.length > 18 ? r.slice(0,17)+'…' : r;
+        g.appendChild(rt);
+      });
+    }
 
     if (isLatest) {
       const dot = el('text',{x:p.x+nW-8,y:p.y+14,'text-anchor':'middle',fill:cat.color,'font-size':12});
@@ -532,14 +621,8 @@ function render() {
     }
 
     if (!isSkeleton) g.addEventListener('click', () => showDetail(id));
-    archSvg.appendChild(g);
+    archPan.appendChild(g);
   }
-
-  const maxRow = Math.max(...sortedRows);
-  const maxCol = Math.max(...ids.map(id => layout[id]?.col ?? 0));
-  const svgW = Math.max(900, padL + (maxCol+1)*(nW+gX) + 40);
-  const svgH = Math.max(400, rowYMap[maxRow] + nH + 60);
-  archSvg.setAttribute('viewBox', `0 0 ${svgW} ${svgH}`);
 }
 
 function escArch(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
@@ -592,5 +675,5 @@ function showDetail(id) {
 }
 
 render();
-window.arch = { addCommand, loadSpec };
+window.arch = { addCommand, loadSpec, clear() { for (const k in activeServices) delete activeServices[k]; for (const k in serviceCommands) delete serviceCommands[k]; latestServiceId = null; render(); } };
 })();

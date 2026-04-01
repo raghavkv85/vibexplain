@@ -115,6 +115,63 @@ const knowledge = {
   },
   aws: {
     _desc: 'AWS command-line interface — manages Amazon Web Services resources',
+    dynamodb: 'Manages DynamoDB NoSQL database tables and items',
+    s3: 'Manages S3 object storage buckets and files',
+    's3api': 'Low-level S3 API operations',
+    lambda: 'Manages Lambda serverless functions',
+    apigateway: 'Manages API Gateway REST and HTTP APIs',
+    sqs: 'Manages SQS message queues for async processing',
+    sns: 'Manages SNS notification topics and subscriptions',
+    'cognito-idp': 'Manages Cognito user pools for authentication',
+    cloudfront: 'Manages CloudFront CDN distributions',
+    ec2: 'Manages EC2 virtual machine instances',
+    ecs: 'Manages ECS container orchestration clusters and services',
+    ecr: 'Manages ECR container image registry',
+    rds: 'Manages RDS relational database instances',
+    iam: 'Manages IAM users, roles, and permissions',
+    cloudformation: 'Manages CloudFormation infrastructure stacks',
+    stepfunctions: 'Manages Step Functions state machine workflows',
+    events: 'Manages EventBridge rules and event buses for scheduling and routing',
+    secretsmanager: 'Manages Secrets Manager for storing sensitive configuration',
+    logs: 'Manages CloudWatch log groups and streams',
+    route53: 'Manages Route 53 DNS hosted zones and records',
+    kms: 'Manages KMS encryption keys',
+    kinesis: 'Manages Kinesis data streams for real-time processing',
+    elasticache: 'Manages ElastiCache Redis/Memcached clusters',
+    wafv2: 'Manages WAF web application firewall rules',
+    ssm: 'Manages Systems Manager parameters and commands',
+    'create-table': 'Creates a new database table',
+    'create-function': 'Creates a new serverless function',
+    'create-rest-api': 'Creates a new REST API',
+    'create-queue': 'Creates a new message queue',
+    'create-topic': 'Creates a new notification topic',
+    'create-user-pool': 'Creates a new user authentication pool',
+    'create-distribution': 'Creates a new CDN distribution',
+    'create-cluster': 'Creates a new cluster',
+    'create-cache-cluster': 'Creates a new cache cluster',
+    'create-db-instance': 'Creates a new database instance',
+    'create-state-machine': 'Creates a new state machine workflow',
+    'create-event-bus': 'Creates a new event bus',
+    'create-secret': 'Stores a new secret',
+    'create-log-group': 'Creates a new log group',
+    'create-hosted-zone': 'Creates a new DNS hosted zone',
+    'create-key': 'Creates a new encryption key',
+    'create-stream': 'Creates a new data stream',
+    'create-web-acl': 'Creates a new web application firewall ACL',
+    'put-rule': 'Creates or updates an event rule for scheduling or routing',
+    'run-instances': 'Launches new EC2 instances',
+    'mb': 'Creates a new S3 bucket',
+    'deploy': 'Deploys a function or service',
+    '--table-name': 'specifies the table name',
+    '--function-name': 'specifies the function name',
+    '--queue-name': 'specifies the queue name',
+    '--name': 'specifies the resource name',
+    '--pool-name': 'specifies the user pool name',
+    '--cluster-name': 'specifies the cluster name',
+    '--cache-cluster-id': 'specifies the cache cluster ID',
+    '--origin-domain': 'specifies the origin domain for CDN',
+    '--db-instance-identifier': 'specifies the database instance ID',
+    '--instance-type': 'specifies the EC2 instance size',
   },
   wget: {
     _desc: 'Downloads files from the web',
@@ -341,15 +398,154 @@ export function explain(rawCommand) {
 
   if (flagExplanations.length) result.flags = flagExplanations;
 
-  // Build human summary
-  const parts = [info._desc];
-  if (sub && info[sub]) parts.push(`→ ${info[sub]}`);
-  if (flagExplanations.length) {
-    parts.push(`(${flagExplanations.map(f => f.meaning).join(', ')})`);
-  }
-  result.summary = parts.join(' ');
+  // Build human summary — contextual, project-relevant
+  result.summary = buildSummary(base, sub, tokens, info, flagExplanations);
 
   return result;
+}
+
+function buildSummary(base, sub, tokens, info, flagExps) {
+  // Extract named values: --flag value pairs
+  const named = {};
+  for (let i = 0; i < tokens.length; i++) {
+    if (tokens[i].startsWith('--') && i + 1 < tokens.length && !tokens[i + 1].startsWith('-')) {
+      named[tokens[i]] = tokens[i + 1];
+    }
+  }
+  // Extract positional args (non-flag, non-tool, non-subcommand tokens)
+  const positional = tokens.filter((t, i) => i > 0 && !t.startsWith('-') && t !== sub && !Object.values(named).includes(t));
+
+  const name = named['--name'] || named['--table-name'] || named['--function-name'] ||
+    named['--queue-name'] || named['--pool-name'] || named['--cluster-name'] ||
+    named['--cache-cluster-id'] || named['--db-instance-identifier'] ||
+    named['--stream-name'] || named['--topic-name'] || named['--log-group-name'] || '';
+
+  // Context-aware summaries for common patterns
+  if (base === 'aws' || base === 'gcloud' || base === 'az') return cloudSummary(base, sub, tokens, named, name);
+  if (base === 'npm' || base === 'yarn' || base === 'pnpm') return pkgSummary(base, sub, tokens, positional);
+  if (base === 'git') return gitSummary(sub, tokens, named, positional);
+  if (base === 'docker') return dockerSummary(sub, tokens, named, positional);
+  if (base === 'terraform') return tfSummary(sub);
+  if (base === 'kubectl') return k8sSummary(sub, tokens, positional);
+  if (base === 'mkdir') return `Creates project directories: ${positional.join(', ')}`;
+
+  // Fallback
+  const parts = [info._desc];
+  if (sub && info[sub]) parts.push(`→ ${info[sub]}`);
+  if (name) parts.push(`'${name}'`);
+  return parts.join(' ');
+}
+
+function cloudSummary(base, sub, tokens, named, name) {
+  const provider = base === 'aws' ? 'AWS' : base === 'gcloud' ? 'GCP' : 'Azure';
+  const action = tokens.find((t, i) => i > 1 && !t.startsWith('-') && /^(create|delete|update|put|get|describe|list|deploy|run|mb|rm)/.test(t));
+
+  const serviceLabels = {
+    dynamodb: 'DynamoDB table', s3: 'S3 bucket', lambda: 'Lambda function',
+    apigateway: 'API Gateway', sqs: 'SQS queue', sns: 'SNS topic',
+    'cognito-idp': 'Cognito user pool', cloudfront: 'CloudFront distribution',
+    ec2: 'EC2 instance', ecs: 'ECS cluster', ecr: 'container registry',
+    rds: 'RDS database', iam: 'IAM resource', stepfunctions: 'Step Functions workflow',
+    events: 'EventBridge rule', secretsmanager: 'secret', logs: 'CloudWatch log group',
+    route53: 'Route 53 zone', kms: 'KMS key', kinesis: 'Kinesis stream',
+    elasticache: 'ElastiCache cluster', wafv2: 'WAF rule', ssm: 'SSM parameter',
+    functions: 'Cloud Function', run: 'Cloud Run service', storage: 'storage bucket',
+    pubsub: 'Pub/Sub topic', bigquery: 'BigQuery dataset', firestore: 'Firestore database',
+    functionapp: 'Azure Function', webapp: 'App Service', cosmosdb: 'Cosmos DB',
+    servicebus: 'Service Bus', aks: 'AKS cluster', sql: 'Azure SQL database',
+  };
+
+  const svcLabel = serviceLabels[sub] || sub || 'resource';
+  const verb = action?.startsWith('create') || action === 'mb' ? 'Sets up' :
+    action?.startsWith('put') ? 'Configures' :
+    action?.startsWith('delete') || action === 'rm' ? 'Removes' :
+    action?.startsWith('update') ? 'Updates' :
+    action === 'deploy' ? 'Deploys' :
+    action === 'run' || action === 'run-instances' ? 'Launches' : 'Manages';
+
+  let summary = `${verb} ${svcLabel}`;
+  if (name) summary += ` '${name}'`;
+  summary += ` in your project`;
+
+  // Add purpose hints based on service type
+  const purposes = {
+    events: ' for scheduled tasks and event routing',
+    sqs: ' for async message processing',
+    sns: ' for push notifications and alerts',
+    'cognito-idp': ' for user authentication',
+    cloudfront: ' for global content delivery',
+    elasticache: ' for fast data caching',
+    stepfunctions: ' for orchestrating multi-step workflows',
+    lambda: ' for serverless compute',
+    apigateway: ' as the API entry point',
+    dynamodb: ' for NoSQL data storage',
+    s3: ' for file and asset storage',
+    rds: ' for relational data storage',
+    kinesis: ' for real-time data streaming',
+    secretsmanager: ' for secure credential storage',
+    logs: ' for monitoring and debugging',
+  };
+  summary += purposes[sub] || '';
+  return summary;
+}
+
+function pkgSummary(base, sub, tokens, positional) {
+  if (sub === 'init') return 'Initializes a new project with a package.json';
+  if (sub === 'install' || sub === 'i' || sub === 'add') {
+    const isDev = tokens.includes('-D') || tokens.includes('--save-dev');
+    const pkgs = tokens.filter((t, i) => i > 1 && !t.startsWith('-') && t !== sub);
+    if (!pkgs.length) return 'Installs all project dependencies from package.json';
+    return `Adds ${pkgs.join(', ')} as ${isDev ? 'dev ' : ''}dependencies to the project`;
+  }
+  if (sub === 'run') return `Runs the '${positional[0] || 'script'}' task defined in package.json`;
+  if (sub === 'test') return 'Runs the project test suite';
+  if (sub === 'build') return 'Builds the project for production';
+  return `Runs ${base} ${sub || ''}`.trim();
+}
+
+function gitSummary(sub, tokens, named, positional) {
+  if (sub === 'init') return 'Initializes a new Git repository to track code changes';
+  if (sub === 'commit') {
+    const msg = tokens.join(' ').match(/-m\s+["']?([^"']+)/);
+    return msg ? `Saves a checkpoint: "${msg[1]}"` : 'Saves a code checkpoint';
+  }
+  if (sub === 'add') return positional[0] === '.' ? 'Stages all changed files for commit' : `Stages ${positional.join(', ')} for commit`;
+  if (sub === 'push') return 'Pushes local commits to the remote repository';
+  if (sub === 'pull') return 'Pulls latest changes from the remote repository';
+  if (sub === 'clone') return `Clones the ${positional[0] || ''} repository locally`.trim();
+  if (sub === 'checkout' || sub === 'switch') return `Switches to the '${positional[0] || ''}' branch`.trim();
+  if (sub === 'branch') return positional[0] ? `Creates a new branch '${positional[0]}'` : 'Lists branches';
+  if (sub === 'merge') return `Merges '${positional[0] || ''}' into the current branch`.trim();
+  return `Git ${sub || 'operation'}`;
+}
+
+function dockerSummary(sub, tokens, named, positional) {
+  if (sub === 'build') {
+    const tag = named['-t'] || named['--tag'] || '';
+    return tag ? `Builds a container image '${tag}' from the Dockerfile` : 'Builds a container image from the Dockerfile';
+  }
+  if (sub === 'run') {
+    const port = tokens.join(' ').match(/-p\s+(\S+)/);
+    return port ? `Starts a container accessible on port ${port[1]}` : 'Starts a new container';
+  }
+  if (sub === 'push') return `Pushes the container image to a registry`;
+  if (sub === 'compose') return 'Manages multi-container services with Docker Compose';
+  return `Docker ${sub || 'operation'}`;
+}
+
+function tfSummary(sub) {
+  if (sub === 'init') return 'Initializes Terraform and downloads required providers';
+  if (sub === 'apply') return 'Provisions all defined cloud infrastructure';
+  if (sub === 'plan') return 'Previews infrastructure changes without applying them';
+  if (sub === 'destroy') return 'Tears down all managed infrastructure';
+  return `Terraform ${sub || 'operation'}`;
+}
+
+function k8sSummary(sub, tokens, positional) {
+  if (sub === 'apply') return `Deploys Kubernetes resources from ${positional.find(t => t.endsWith('.yaml') || t.endsWith('.yml')) || 'manifest'}`;
+  if (sub === 'get') return `Lists Kubernetes ${positional[0] || 'resources'}`;
+  if (sub === 'delete') return `Removes Kubernetes ${positional[0] || 'resources'}`;
+  return `Kubernetes ${sub || 'operation'}`;
 }
 
 function tokenize(cmd) {

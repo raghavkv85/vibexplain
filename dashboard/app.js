@@ -31,9 +31,9 @@ let firstCommand = true;
 let ws;
 
 // Tab switching
-document.querySelectorAll('.tab').forEach(tab => {
+document.querySelectorAll('.toolbar .tab').forEach(tab => {
   tab.addEventListener('click', () => {
-    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.toolbar .tab').forEach(t => t.classList.remove('active'));
     tab.classList.add('active');
     document.querySelectorAll('.panel-view').forEach(v => v.classList.remove('active'));
     document.getElementById(tab.dataset.panel + '-view').classList.add('active');

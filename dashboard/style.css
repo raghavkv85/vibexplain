@@ -43,8 +43,7 @@ header {
   border-bottom: 1px solid var(--border);
 }
 header h1 { font-size: 18px; font-weight: 600; color: var(--purple); }
-.header-controls { display: flex; gap: 4px; margin-left: auto; }
-.status { font-size: 12px; color: var(--dim); margin-left: 12px; }
+.status { font-size: 12px; color: var(--dim); margin-left: auto; }
 .status.connected { color: var(--green); }
 .status.connected::before { content: '● '; }
 
@@ -56,11 +55,31 @@ header h1 { font-size: 18px; font-weight: 600; color: var(--purple); }
   border-radius: 6px;
   font-size: 14px;
   cursor: pointer;
-  margin-left: 8px;
   line-height: 1;
 }
 .theme-toggle:hover { border-color: var(--accent); color: var(--accent); }
 
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 24px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+}
+.session-select {
+  margin-left: auto;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.session-select:hover { border-color: var(--accent); }
+.session-select:focus { outline: none; border-color: var(--accent); }
 .tab {
   background: transparent;
   border: 1px solid var(--border);
@@ -78,7 +97,7 @@ main {
   grid-template-columns: 1fr 4px 1fr;
   gap: 0;
   background: var(--border);
-  height: calc(100vh - 49px);
+  height: calc(100vh - 85px);
 }
 
 section {
@@ -108,7 +127,7 @@ section h2 {
 
 #narrative-panel { padding: 20px 24px; }
 
-.panel-view { display: none; width: 100%; height: 100%; overflow: auto; }
+.panel-view { display: none; width: 100%; height: 100%; overflow: hidden; position: relative; }
 .panel-view.active { display: block; }
 #commands-view { padding: 20px 24px; overflow-y: auto; height: 100%; }
 #plan-view { padding: 20px 24px; overflow-y: auto; height: 100%; }
@@ -178,21 +197,7 @@ section h2 {
 #mindmap { background: var(--bg); }
 #flow-svg { background: var(--bg); }
 #arch-svg { background: var(--bg); }
-#graph-svg { background: var(--bg); }
 
-/* Knowledge Graph */
-.graph-stats {
-  position: absolute;
-  top: 12px;
-  left: 16px;
-  font-size: 11px;
-  color: var(--dim);
-  z-index: 10;
-  background: var(--surface);
-  padding: 4px 10px;
-  border-radius: 6px;
-  border: 1px solid var(--border);
-}
 
 .zoom-controls {
   position: absolute;
@@ -313,7 +318,7 @@ section h2 {
 .detail-overlay .detail-title { font-size:16px; font-weight:600; margin-bottom:4px; }
 .detail-overlay .detail-sub { font-size:12px; color:var(--dim); margin-bottom:16px; }
 .detail-overlay .detail-section { font-size:11px; text-transform:uppercase; letter-spacing:1px; color:var(--dim); margin:12px 0 6px; }
-.detail-overlay .detail-cmd { font-size:12px; color:var(--accent); background:var(--surface); padding:6px 10px; border-radius:6px; margin-bottom:2px; word-break:break-all; }
+.detail-overlay .detail-cmd { font-size:12px; color:var(--accent); background:var(--surface); padding:6px 10px; border-radius:6px; margin-bottom:2px; overflow-wrap:break-word; word-break:keep-all; white-space:pre-wrap; }
 .detail-overlay .detail-desc { font-size:11px; color:var(--dim); padding:0 10px 2px; }
 .detail-overlay .detail-action { font-size:11px; color:var(--green); padding:0 10px 2px; }
 .detail-overlay .detail-flag { font-size:11px; color:var(--yellow); padding:0 10px 1px; }
@@ -363,3 +368,16 @@ section h2 {
   border-radius: 3px;
   margin-right: 4px;
 }
+
+/* Dependencies table */
+#graph-view { overflow-y: auto; padding: 16px 20px; }
+.dep-empty { color: var(--dim); font-size: 13px; padding: 40px 0; text-align: center; }
+.dep-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.dep-table th { text-align: left; color: var(--dim); font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; padding: 6px 10px; border-bottom: 1px solid var(--border); }
+.dep-table td { padding: 8px 10px; border-bottom: 1px solid var(--border); color: var(--text); }
+.dep-entity { font-weight: 600; }
+.dep-type { color: var(--dim); font-size: 11px; }
+.dep-rel { color: var(--accent); font-style: italic; }
+.dep-conn { color: var(--dim); }
+
+/* Session history — handled by dropdown in header */
