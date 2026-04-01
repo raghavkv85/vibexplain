@@ -6,7 +6,7 @@ See what your AI coding agent is actually doing — in real time.
 
 ---
 
-You tell an AI agent to "build me a serverless API with auth" and it starts running. But what is it actually doing? vibexplain shows you — a live dashboard with a mind map, architecture diagram, and plain-English explanations.
+You tell an AI coding agent to "build me a serverless API with auth" and it starts running. But what is it actually doing? vibexplain shows you a live dashboard with a mind map, architecture diagram, the dependencies getting installed, and all of this in plain-English explanations.
 
 ## Install
 
@@ -28,11 +28,11 @@ vibexplain
 kiro-cli chat    # or claude, cursor, aider, anything
 ```
 
-That's it. The dashboard opens automatically in your browser.
+That's it. The dashboard opens in your browser.
 
 ### New project?
 
-Start vibexplain first, then tell your agent what to build. The dashboard starts empty and fills in as your agent works — files, dependencies, infrastructure, commits.
+Start vibexplain first, then tell your agent what to build. The dashboard starts empty and fills in as your agent works thhrough files, dependencies, infrastructure, commits.
 
 | Tool | What you do | What vibexplain sees |
 |---|---|---|
@@ -43,7 +43,7 @@ Start vibexplain first, then tell your agent what to build. The dashboard starts
 
 ### Existing project?
 
-vibexplain scans your project on startup — git history, package.json, Terraform, Serverless, CDK — and pre-populates the dashboard with what's already there. Then it watches for new changes.
+vibexplain scans your project on startup, be it git history, package.json, Terraform, Serverless, CDK etc, and pre-populates the dashboard with what's already there. Then it watches for new changes.
 
 | Tool | What you do | What vibexplain sees |
 |---|---|---|
