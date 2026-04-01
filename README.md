@@ -38,10 +38,10 @@ Start vibexplain first, then tell your agent what to build. The dashboard starts
 
 | Tool | What you do | What vibexplain sees |
 |---|---|---|
-| **Kiro** | `vibexplain` in Terminal 1, `kiro-cli chat` in Terminal 2 | File watcher detects new files, deps, IaC, git commits |
-| **Claude Code** | `vibexplain` in Terminal 1, `claude` in Terminal 2 | JSONL tailer captures every exact command + file watcher as backup |
-| **Cursor / Windsurf** | `vibexplain` in Terminal 1, use IDE normally | File watcher detects all filesystem changes |
-| **Aider** | `vibexplain` in Terminal 1, `aider` in Terminal 2 | File watcher + stdout parsing via `vibexplain -- aider` |
+| **Kiro** | `cd your-project && vibexplain` in Terminal 1, `kiro-cli chat` in Terminal 2 | File watcher detects new files, deps, IaC, git commits |
+| **Claude Code** | `cd your-project && vibexplain` in Terminal 1, `claude` in Terminal 2 | JSONL tailer captures every exact command + file watcher as backup |
+| **Cursor / Windsurf** | `cd your-project && vibexplain` in Terminal 1, use IDE normally | File watcher detects all filesystem changes |
+| **Aider** | `cd your-project && vibexplain` in Terminal 1, `aider` in Terminal 2 | File watcher + stdout parsing via `vibexplain -- aider` |
 
 ### Existing project?
 
@@ -49,10 +49,10 @@ vibexplain scans your project on startup — git history, package.json, Terrafor
 
 | Tool | What you do | What vibexplain sees |
 |---|---|---|
-| **Kiro** | `vibexplain` in your project dir, then `kiro-cli chat` | Scanner bootstraps dashboard (git, deps, IaC with real names), then file watcher tracks new changes |
-| **Claude Code** | `vibexplain` in your project dir, then `claude` | Scanner bootstraps + JSONL tailer captures exact commands going forward |
-| **Cursor / Windsurf** | `vibexplain` in your project dir, use IDE normally | Scanner bootstraps + file watcher tracks changes |
-| **Aider** | `vibexplain` in your project dir, then `aider` | Scanner bootstraps + file watcher tracks changes |
+| **Kiro** | `cd your-project && vibexplain` in Terminal 1, then `kiro-cli chat` in Terminal 2 | Scanner bootstraps dashboard (git, deps, IaC with real names), then file watcher tracks new changes |
+| **Claude Code** | `cd your-project && vibexplain` in Terminal 1, then `claude` in Terminal 2 | Scanner bootstraps + JSONL tailer captures exact commands going forward |
+| **Cursor / Windsurf** | `cd your-project && vibexplain` in Terminal 1, use IDE normally | Scanner bootstraps + file watcher tracks changes |
+| **Aider** | `cd your-project && vibexplain` in Terminal 1, then `aider` in Terminal 2 | Scanner bootstraps + file watcher tracks changes |
 
 ## How it detects changes
 
