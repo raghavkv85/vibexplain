@@ -2,7 +2,7 @@
 
 See what your AI coding agent is actually doing in real time.
 
-A live dashboard that intercepts every CLI command your vibe coding tool runs, explains it in plain English, and draws the architecture as it's being built.
+A live dashboard that watches your project, explains every change in plain English, and draws the architecture as it's being built — works with any AI coding tool.
 
 ![status](https://img.shields.io/badge/status-alpha-blueviolet) ![license](https://img.shields.io/badge/license-MIT-green) ![node](https://img.shields.io/badge/node-%3E%3D18-blue)
 
@@ -46,48 +46,103 @@ npm install -g vibexplain
 
 No `npm login` required — this is a public package.
 
-## How to use with your AI coding tool
+## How it works
 
-### Kiro
+vibexplain uses a layered detection system that automatically picks the best strategy for your tool:
+
+```
+vibexplain starts
+  ├── Scanner        → bootstraps dashboard from existing project state
+  ├── File watcher   → detects live changes (works with every agent)
+  └── Claude Code    → tails JSONL session transcripts for exact commands
+      tailer           (auto-detected, zero config)
+```
+
+| Layer | What it does | Works with |
+|---|---|---|
+| **Scanner** | Reads git history, package.json, Terraform/Serverless/CDK files. Extracts real resource names. Pre-populates the dashboard instantly. | Everything |
+| **File watcher** | Monitors your project for new files, dep changes, IaC changes, Dockerfiles, git commits. Synthesizes commands from filesystem events. | Every agent — Kiro, Claude Code, Cursor, Aider, Windsurf, anything |
+| **Claude Code tailer** | Tails `~/.claude/projects/` JSONL session transcripts. Extracts exact Bash commands and file writes from `tool_use` blocks. | Claude Code (auto-detected) |
+
+All layers run simultaneously with shared deduplication. No double-counting.
+
+## Quick start
+
+```bash
+# Terminal 1 — start vibexplain in your project directory
+cd your-project
+vibexplain
+
+# Terminal 2 — use your agent as normal
+kiro-cli chat          # or claude, cursor, aider, etc.
+```
+
+That's it. No flags, no wrapping, no config changes. vibexplain figures out the rest.
+
+## Two use cases
+
+### 1. Starting a new project
+
+You're about to vibe code from scratch. Start vibexplain, then tell your agent what to build.
+
+The dashboard starts empty and builds itself as your agent works:
+- New files appear → mind map grows
+- Dependencies installed → packages show up in the knowledge graph
+- IaC resources created → architecture diagram draws itself
+- Git commits → timeline fills in
+
+### 2. Existing project
+
+You already have a project and want to understand what's there, then watch as your agent adds to it.
+
+The scanner bootstraps the dashboard instantly:
+- Git history → commit timeline
+- package.json / requirements.txt / Cargo.toml → dependency graph
+- Terraform / Serverless / CDK / CloudFormation → architecture diagram with **real resource names** (not placeholders)
+- Dockerfiles → container nodes
+- Project structure → directory layout
+
+Then the watcher takes over for live changes as your agent continues building.
+
+## Per-tool experience
+
+| Tool | Scanner | Live detection | Accuracy |
+|---|---|---|---|
+| **Kiro** | ✅ Full project scan | File watcher | Good — sees what changed |
+| **Claude Code** | ✅ Full project scan | File watcher + JSONL tailer | Exact — sees every command |
+| **Cursor / Windsurf** | ✅ Full project scan | File watcher | Good — sees what changed |
+| **Aider** | ✅ Full project scan | File watcher + stdout parsing | Good+ — sees changes + some commands |
+| **Any CLI agent** | ✅ Full project scan | File watcher | Good — sees what changed |
+
+Claude Code users get the best experience automatically because Claude Code writes structured session logs that vibexplain tails in real time. No configuration needed.
+
+## Other modes
+
+### Wrap mode
+
+Wraps the agent process and captures its stdout/stderr. File watching and Claude Code tailing are also enabled automatically.
 
 ```bash
 vibexplain -- kiro-cli chat
-```
-
-Then start vibing. Every command Kiro runs shows up on the dashboard.
-
-### Claude Code
-
-```bash
 vibexplain -- claude "build me a todo app with DynamoDB"
-```
-
-### Cursor
-
-```bash
-vibexplain -- cursor-cli "add authentication with Cognito"
-```
-
-### Aider
-
-```bash
 vibexplain -- aider --model claude-3.5-sonnet
-```
-
-### Any agent
-
-```bash
 vibexplain -- <your-agent-command> [args...]
 ```
 
-vibexplain wraps the agent process, captures its stdout/stderr, and explains every CLI command it runs. The agent works exactly as before vibexplain just watches.
-
-### Pipe mode (alternative)
+### Pipe mode
 
 If your agent doesn't work with wrapping:
 
 ```bash
 your-agent 2>&1 | vibexplain
+```
+
+### Scan only
+
+One-time scan of your project state — no live updates:
+
+```bash
+vibexplain --scan
 ```
 
 ### Demo mode
@@ -99,6 +154,17 @@ npx vibexplain --demo
 ```
 
 Streams sample commands including AWS services so you can see the dashboard in action without running a real agent.
+
+### Options
+
+| Flag | Description |
+|---|---|
+| *(no flags)* | Scan project + watch for live changes (default) |
+| `--scan` | One-time scan of project state |
+| `--demo` | Run with sample data |
+| `--no-scan` | Skip initial project scan |
+| `--no-watch` | Disable file watcher in wrap mode |
+| `--help` | Show usage info |
 
 ## What you see
 
@@ -189,6 +255,8 @@ vibexplain has a built-in knowledge base covering 50+ CLI tools:
 | Version Control | `git` (20+ subcommands) |
 | Containers | `docker`, `kubectl` |
 | Infrastructure | `terraform`, `aws`, `ssh`, `scp` |
+| Cloud CLIs | `gcloud`, `gsutil`, `bq`, `az` |
+| Platforms | `vercel`, `netlify`, `firebase`, `supabase`, `fly`, `railway`, `heroku` |
 | Run & Execute | `node`, `python`, `ruby`, `curl`, `wget`, `make`, `cmake` |
 | Text & Search | `grep`, `sed`, `awk`, `cat`, `head`, `tail`, `wc`, `sort`, `uniq` |
 
@@ -226,19 +294,22 @@ The skeleton shows greyed-out service boxes. As the agent runs commands that mat
 
 ```
 src/
-  cli.js          - CLI entry point (wrap, pipe, demo modes)
-  server.js       - HTTP + WebSocket server + plan file watcher
-  explainer.js    - Command knowledge base (50+ tools)
-  artifacts.js    - Detects files/dirs/deps/containers/cloud resources
-  triplets.js     - SPO triplet extraction for knowledge graph (20+ patterns)
-  open.js         - Opens dashboard in default browser
+  cli.js           - CLI entry point (watch, wrap, pipe, demo modes)
+  server.js        - HTTP + WebSocket server + plan file watcher
+  scanner.js       - Project scanner (bootstraps from existing state)
+  watcher.js       - Live file watcher (detects changes in real time)
+  claude-tailer.js - Tails Claude Code JSONL transcripts for exact commands
+  explainer.js     - Command knowledge base (50+ tools)
+  artifacts.js     - Detects files/dirs/deps/containers/cloud resources
+  triplets.js      - SPO triplet extraction for knowledge graph (20+ patterns)
+  open.js          - Opens dashboard in default browser
 dashboard/
-  index.html      - Dashboard shell (3 tabs + theme toggle)
-  style.css       - Dark + light theme styles
-  app.js          - WebSocket client, narrative, theme, divider
-  mindmap.js      - Interactive SVG mind map with zoom/pan
-  arch.js         - Live architecture diagram with 121 service types
-  graph.js        - Force-directed knowledge graph with blast radius
+  index.html       - Dashboard shell (3 tabs + theme toggle)
+  style.css        - Dark + light theme styles
+  app.js           - WebSocket client, narrative, theme, divider
+  mindmap.js       - Interactive SVG mind map with zoom/pan
+  arch.js          - Live architecture diagram with 121 service types
+  graph.js         - Force-directed knowledge graph with blast radius
 ```
 
 ## Zero dependencies (almost)

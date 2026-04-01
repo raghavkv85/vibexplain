@@ -7,44 +7,95 @@ import { spawn } from 'child_process';
 import { createInterface } from 'readline';
 import { openDashboard } from './open.js';
 import { scanProject } from './scanner.js';
+import { startWatcher } from './watcher.js';
+import { startClaudeCodeTailer } from './claude-tailer.js';
 
 const args = process.argv.slice(2);
+
+if (args.includes('--help') || args.includes('-h')) {
+  console.log(`
+\x1b[35m  vibexplain\x1b[0m — see what your AI is actually doing
+
+  \x1b[1mUsage:\x1b[0m
+
+    vibexplain                  Scan project + watch for live changes (default)
+    vibexplain --demo           Run with sample data
+    vibexplain --scan           One-time scan, no live updates
+    vibexplain -- <agent> ...   Wrap an agent process + watch files
+
+  \x1b[1mOptions:\x1b[0m
+
+    --no-scan           Skip initial project scan
+    --no-watch          Disable file watcher in wrap mode
+    --help, -h          Show this help
+
+  Dashboard opens at http://localhost:${process.env.VIBEXPLAIN_PORT || 3777}
+`);
+  process.exit(0);
+}
+
 const port = parseInt(process.env.VIBEXPLAIN_PORT || '3777', 10);
 const noScan = args.includes('--no-scan');
+const noWatch = args.includes('--no-watch');
 
 // Mode 1: Wrap a command — `vibexplain -- claude-code "build a todo app"`
 // Mode 2: Pipe mode    — `some-agent 2>&1 | vibexplain`
 // Mode 3: Demo mode    — `vibexplain --demo`
 // Mode 4: Scan only    — `vibexplain --scan`
+// Mode 5: Watch mode   — `vibexplain --watch` (scan + live file watching)
 
 const dashSep = args.indexOf('--');
 const isDemo = args.includes('--demo');
-const isScanOnly = args.includes('--scan') && dashSep === -1;
-const isPipe = !process.stdin.isTTY && dashSep === -1 && !isDemo && !isScanOnly;
+const isWatch = args.includes('--watch') && dashSep === -1;
+const isScanOnly = args.includes('--scan') && dashSep === -1 && !isWatch;
+const isPipe = !process.stdin.isTTY && dashSep === -1 && !isDemo && !isScanOnly && !isWatch;
 const isWrap = dashSep !== -1;
 
 const { broadcast } = startServer(port);
 let seq = 0;
 
-function handleLine(line) {
-  const trimmed = line.trim();
-  if (!trimmed || trimmed.startsWith('#') || trimmed.startsWith('//')) return;
-  const cleaned = trimmed.startsWith('$ ') ? trimmed.slice(2) : trimmed;
-  if (!/^[a-zA-Z_./~][a-zA-Z0-9_./-]*\s/.test(cleaned) && !/^[a-zA-Z_./~][a-zA-Z0-9_./-]*$/.test(cleaned)) return;
-
-  const explanation = explain(cleaned);
+function processCommand(cmd) {
+  const explanation = explain(cmd);
   if (!explanation) return;
-  const artifacts = detectArtifacts(cleaned);
-  const triplets = extractTriplets(cleaned);
+  const artifacts = detectArtifacts(cmd);
+  const triplets = extractTriplets(cmd);
   broadcast({
     id: ++seq,
     ts: Date.now(),
-    raw: cleaned,
+    raw: cmd,
     explanation: Array.isArray(explanation) ? explanation : [explanation],
     artifacts,
     triplets,
   });
-  console.log(`\x1b[36m  #${seq}\x1b[0m ${cleaned}`);
+  console.log(`\x1b[36m  #${seq}\x1b[0m ${cmd}`);
+}
+
+// Patterns that AI coding agents use to display commands in their output
+const agentCommandPatterns = [
+  // Claude Code: ⏺ Bash(npm install express) or ⏺ bash: npm install express
+  /^[⏺●]\s*(?:Bash|bash)\s*\(\s*(.+?)\s*\)/i,
+  /^[⏺●]\s*(?:Bash|bash|execute_bash|shell|run|command)[:\s]+(.+)/i,
+  // Aider: > Run shell command: npm install express
+  /^>\s*(?:Run(?:ning)?|Shell)\s*(?:shell\s*)?(?:command)?[:\s]+(.+)/i,
+  // Generic patterns
+  /^(?:Running|Executing|Command)[:\s]+[`'"]?(.+?)[`'"]?\s*$/i,
+  /^\$\s+(.+)/,
+];
+
+function handleLine(line) {
+  const trimmed = line.trim();
+  if (!trimmed || trimmed.startsWith('#') || trimmed.startsWith('//')) return;
+
+  // Try extracting a command from agent output patterns first
+  for (const pat of agentCommandPatterns) {
+    const m = trimmed.match(pat);
+    if (m && m[1]) { processCommand(m[1].trim()); return; }
+  }
+
+  // Direct command detection (original logic)
+  const cleaned = trimmed.startsWith('$ ') ? trimmed.slice(2) : trimmed;
+  if (!/^[a-zA-Z_./~][a-zA-Z0-9_./-]*\s/.test(cleaned) && !/^[a-zA-Z_./~][a-zA-Z0-9_./-]*$/.test(cleaned)) return;
+  processCommand(cleaned);
 }
 
 function bootstrapScan() {
@@ -55,9 +106,27 @@ function bootstrapScan() {
   console.log(`\x1b[35m  vibexplain\x1b[0m scan complete — dashboard pre-populated`);
 }
 
+// Starts file watcher + Claude Code JSONL tailer with shared dedup
+function startLiveTracking() {
+  const seenCmds = new Set();
+  const dedupedHandler = (cmd) => {
+    if (seenCmds.has(cmd)) return;
+    seenCmds.add(cmd);
+    setTimeout(() => seenCmds.delete(cmd), 5000);
+    handleLine(cmd);
+  };
+  startWatcher(process.cwd(), dedupedHandler);
+  startClaudeCodeTailer(process.cwd(), dedupedHandler);
+}
+
 if (isScanOnly) {
   openDashboard(port);
   bootstrapScan();
+
+} else if (isWatch) {
+  if (!noScan) bootstrapScan();
+  startLiveTracking();
+  openDashboard(port);
 
 } else if (isWrap) {
   if (!noScan) bootstrapScan();
@@ -77,6 +146,10 @@ if (isScanOnly) {
   const rlErr = createInterface({ input: child.stderr });
   rlOut.on('line', (l) => { process.stdout.write(l + '\n'); handleLine(l); });
   rlErr.on('line', (l) => { process.stderr.write(l + '\n'); handleLine(l); });
+
+  // Also watch files + tail Claude Code sessions
+  if (!noWatch) startLiveTracking();
+
   child.on('exit', (code) => {
     console.log(`\x1b[35m  vibexplain\x1b[0m agent exited (${code}). Dashboard still running at http://localhost:${port}`);
   });
@@ -165,17 +238,8 @@ if (isScanOnly) {
   }, 1000);
 
 } else {
-  console.log(`
-\x1b[35m  vibexplain\x1b[0m — see what your AI is actually doing
-
-  \x1b[1mUsage:\x1b[0m
-
-    Wrap your agent:    vibexplain -- claude-code "build me a todo app"
-    Pipe mode:          your-agent 2>&1 | vibexplain
-    Scan only:          vibexplain --scan
-    Demo:               vibexplain --demo
-    Skip auto-scan:     vibexplain --no-scan -- claude-code "..."
-
-  Dashboard opens at http://localhost:${port}
-`);
+  // Default: scan + watch + tail Claude Code sessions
+  if (!noScan) bootstrapScan();
+  startLiveTracking();
+  openDashboard(port);
 }
