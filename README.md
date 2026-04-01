@@ -30,7 +30,7 @@ vibexplain
 kiro-cli chat    # or claude, cursor, aider, anything
 ```
 
-That's it. The dashboard opens at http://localhost:3777.
+That's it. The dashboard opens automatically in your browser.
 
 ### New project?
 
