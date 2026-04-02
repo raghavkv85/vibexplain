@@ -108,7 +108,7 @@ export function startWatcher(cwd, onCommand) {
       if (stat.isDirectory()) {
         onCommand(`mkdir -p ${filename}`);
       } else {
-        onCommand(`touch ${filename}`);
+        onCommand(describeNewFile(filename));
       }
     } catch { /* race condition */ }
   }
@@ -167,4 +167,34 @@ function detectCloudResources(filePath) {
     const content = readFileSync(filePath, 'utf-8');
     return cloudPatterns.filter(([p]) => p.test(content)).map(([, cmd]) => cmd);
   } catch { return []; }
+}
+
+// Generates a meaningful synthetic command based on filename/path
+function describeNewFile(filename) {
+  const base = basename(filename);
+  const ext = extname(filename);
+  const lower = filename.toLowerCase();
+
+  // Known config/infra files
+  if (base === 'Dockerfile') return `docker build -t app .`;
+  if (base.startsWith('docker-compose')) return 'docker compose up';
+  if (ext === '.tf') return 'terraform apply';
+  if (base === 'serverless.yml' || base === 'serverless.yaml') return 'serverless deploy';
+  if (base === 'cdk.json') return 'cdk deploy';
+  if (base === 'package.json') return 'npm init -y';
+  if (base === 'requirements.txt') return 'pip install -r requirements.txt';
+  if (base === 'Cargo.toml') return 'cargo init';
+  if (base === '.env' || base === '.env.local') return `touch ${filename}`;
+  if (base === 'Makefile') return 'make';
+
+  // Route/API files
+  if (lower.includes('route') || lower.includes('controller') || lower.includes('endpoint'))
+    return `node ${filename}`;
+
+  // Test files
+  if (lower.includes('test') || lower.includes('spec'))
+    return `npm test`;
+
+  // Default: touch with full path (still useful for the explainer)
+  return `touch ${filename}`;
 }

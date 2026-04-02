@@ -23,7 +23,7 @@
 const narrative = document.getElementById('narrative');
 const statusEl = document.getElementById('status');
 
-const emptyNarrative = `<div class="empty-state">The story of your build<br>will appear here</div>`;
+const emptyNarrative = `<div class="empty-state">Watching for changes…<br><span style="font-size:0.85em;opacity:0.6">Use your AI agent in another terminal</span></div>`;
 
 narrative.innerHTML = emptyNarrative;
 

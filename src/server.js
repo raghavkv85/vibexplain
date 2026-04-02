@@ -1,5 +1,5 @@
 import { createServer } from 'http';
-import { readFileSync, existsSync, watchFile, mkdirSync, writeFileSync, readdirSync } from 'fs';
+import { readFileSync, existsSync, watchFile, mkdirSync, appendFileSync, readdirSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { WebSocketServer } from 'ws';
@@ -30,30 +30,33 @@ export function startServer(port = 3777) {
   // Session persistence
   mkdirSync(sessDir, { recursive: true });
   const sessionId = new Date().toISOString().replace(/[:.]/g, '-');
-  const sessionFile = join(sessDir, `${sessionId}.json`);
-  const sessionEvents = [];
+  const sessionFile = join(sessDir, `${sessionId}.jsonl`);
 
-  function saveSession() {
-    if (!sessionEvents.length) return;
-    writeFileSync(sessionFile, JSON.stringify({ id: sessionId, started: sessionEvents[0].ts, events: sessionEvents }, null, 2));
+  function saveEvent(event) {
+    appendFileSync(sessionFile, JSON.stringify(event) + '\n');
   }
 
   function loadSessions() {
     try {
       return readdirSync(sessDir)
-        .filter(f => f.endsWith('.json'))
+        .filter(f => f.endsWith('.jsonl'))
         .sort().reverse()
         .map(f => {
           try {
-            const data = JSON.parse(readFileSync(join(sessDir, f), 'utf-8'));
-            return { id: data.id, started: data.started, count: data.events?.length || 0, file: f };
+            const lines = readFileSync(join(sessDir, f), 'utf-8').trim().split('\n').filter(Boolean);
+            const first = lines[0] ? JSON.parse(lines[0]) : null;
+            return { id: f.replace('.jsonl', ''), started: first?.ts, count: lines.length, file: f };
           } catch { return null; }
         }).filter(Boolean);
     } catch { return []; }
   }
 
   function loadSession(file) {
-    try { return JSON.parse(readFileSync(join(sessDir, file), 'utf-8')); } catch { return null; }
+    try {
+      const lines = readFileSync(join(sessDir, file), 'utf-8').trim().split('\n').filter(Boolean);
+      const events = lines.map(l => JSON.parse(l));
+      return { id: file.replace('.jsonl', ''), started: events[0]?.ts, events };
+    } catch { return null; }
   }
 
   // Watch for plan files
@@ -86,7 +89,7 @@ export function startServer(port = 3777) {
       return;
     }
     if (url.startsWith('/api/session/')) {
-      const file = url.slice('/api/session/'.length) + '.json';
+      const file = url.slice('/api/session/'.length) + '.jsonl';
       const data = loadSession(file);
       res.writeHead(data ? 200 : 404, { 'Content-Type': 'application/json' });
       res.end(data ? JSON.stringify(data) : '{"error":"not found"}');
@@ -122,7 +125,7 @@ export function startServer(port = 3777) {
     broadcast(data) {
       const msg = JSON.stringify(data);
       history.push(msg);
-      if (data.id) { sessionEvents.push(data); saveSession(); }
+      if (data.id) { saveEvent(data); }
       for (const client of wss.clients) {
         if (client.readyState === 1) client.send(msg);
       }
