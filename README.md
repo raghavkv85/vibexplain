@@ -63,8 +63,9 @@ vibexplain layers three detection methods. All run automatically.
 | **Scanner** | Git history, deps, IaC resources (with real names) | Everything |
 | **File watcher** | New files, dep changes, IaC changes, git commits | Every agent |
 | **Claude Code tailer** | Exact Bash commands from JSONL session logs | Claude Code (auto-detected) |
+| **Codex CLI tailer** | Exact shell commands from JSONL session logs | Codex CLI (auto-detected) |
 
-Claude Code users get exact commands automatically. Everyone else gets file-watcher-based detection. No config needed either way.
+Claude Code and Codex users get exact commands automatically. Everyone else gets file-watcher-based detection. No config needed either way.
 
 ## What you see
 

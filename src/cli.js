@@ -9,6 +9,7 @@ import { openDashboard } from './open.js';
 import { scanProject } from './scanner.js';
 import { startWatcher } from './watcher.js';
 import { startClaudeCodeTailer } from './claude-tailer.js';
+import { startCodexTailer } from './codex-tailer.js';
 
 const args = process.argv.slice(2);
 
@@ -117,6 +118,7 @@ function startLiveTracking() {
   };
   startWatcher(process.cwd(), dedupedHandler);
   startClaudeCodeTailer(process.cwd(), dedupedHandler);
+  startCodexTailer(process.cwd(), dedupedHandler);
 }
 
 if (isScanOnly) {
